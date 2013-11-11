@@ -1,6 +1,7 @@
 package {
 
     import flash.display.Sprite;
+    import flash.events.Event;
     import flash.events.NetStatusEvent;
     import flash.net.NetConnection;
     import flash.net.NetStream;
@@ -10,11 +11,14 @@ package {
     import flash.media.H264Level;
     import flash.media.H264Profile;
     import flash.media.H264VideoStreamSettings;
+    
+    import flash.external.ExternalInterface;
 
     public class Publisher extends Sprite {
     
+        private var inited:Boolean = false;
         private var nc:NetConnection;
-        private var rtmpNow:String;
+        private var rtmpURL:String;
         private var nsIn:NetStream;
         private var nsOut:NetStream;
         private var cam:Camera;
@@ -23,20 +27,45 @@ package {
         private var vidStream:Video;
         private var cameraSettings:H264VideoStreamSettings;
         
+        private var host:String = "localhost";
+        private var appName:String = "live";
+        
         public function Publisher() {
-            trace("Stage Width: " + this.stage.width);
-            trace("Stage Height:" + this.stage.height);
+            this.addEventListener(Event.ADDED, onAdded)
+
+            // ExternalInterface.call("console.log", "HOST: "+host+"; APP: "+appName);
+        }
+        
+        public function onAdded(e:Event):void {
+        
+            if (inited) return;
+        
+            inited = true;
+            trace("Width: "+stage.stageWidth+"; Height: "+stage.stageHeight);
+
+            if (root.loaderInfo.parameters["host"]) {
+                host = stage.loaderInfo.parameters["host"]
+            }
+            if (root.loaderInfo.parameters["appName"]) {
+                appName = stage.loaderInfo.parameters["appName"]
+            }
             
-            rtmpNow = "rtmp://localhost/live";
+            ExternalInterface.call("console.log", "HOST: "+host+"; APP: "+appName);
+            ExternalInterface.call("console.log", "Width: "+stage.stageWidth+"; Height: "+stage.stageHeight);
+            
+            rtmpURL = "rtmp://" + host + "/" + appName;
+            
+            trace("connect " + rtmpURL);
             
             nc = new NetConnection();
             nc.addEventListener(NetStatusEvent.NET_STATUS, checkCon);
             nc.client = this;
             
-            nc.connect(rtmpNow);
+            nc.connect(rtmpURL);
 
             setCam();
             setMic();
+
         }
         
         // bandwidth detection on the server
@@ -93,19 +122,22 @@ package {
 
         private function setVideo():void {
         
-            vidLocal = new Video(cam.width,cam.height);
+            var w:Number = stage.stageWidth;
+            var h:Number = cam.height / cam.width * stage.stageWidth;
+        
+            vidLocal = new Video(w,h);
             vidLocal.x = 0;
-            vidLocal.y = 0;
+            vidLocal.y = (stage.stageHeight - h) / 2;
             vidLocal.attachCamera(cam);
             addChild(vidLocal);
             
-            nsIn = new NetStream(nc);
-            nsIn.play("user1");
-            vidStream = new Video(cam.width,cam.height);
-            vidStream.x = vidLocal.x + cam.width + 10;
-            vidStream.y = vidLocal.y;
-            vidStream.attachNetStream(nsIn);
-            addChild(vidStream);
+            // nsIn = new NetStream(nc);
+            // nsIn.play("user1");
+            // vidStream = new Video(cam.width,cam.height);
+            // vidStream.x = vidLocal.x + cam.width + 10;
+            // vidStream.y = vidLocal.y;
+            // vidStream.attachNetStream(nsIn);
+            // addChild(vidStream);
             
         }
     }
