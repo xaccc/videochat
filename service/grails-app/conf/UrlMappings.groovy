@@ -6,6 +6,8 @@ class UrlMappings {
 				// apply constraints here
 			}
 		}
+        
+        "/api/$action/$uid?" (controller:"api")
 
 		"/"(view:"/index")
 		"500"(view:'/error')
