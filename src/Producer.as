@@ -3,7 +3,6 @@ package {
 	import flash.display.Sprite;
 	import flash.events.Event;
 	import flash.events.NetStatusEvent;
-	import flash.external.ExternalInterface;
 	import flash.media.Camera;
 	import flash.media.H264Level;
 	import flash.media.H264Profile;
@@ -12,27 +11,36 @@ package {
 	import flash.media.Video;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
+    import flash.text.TextField;
+    import flash.text.TextFieldAutoSize;
+    import flash.text.TextFormat;
+    import flash.filters.DropShadowFilter;
 	
 	public class Producer extends Sprite {
 		
 		private var inited:Boolean = false;
 		private var nc:NetConnection;
 		private var rtmpURL:String;
-		private var nsIn:NetStream;
 		private var nsOut:NetStream;
 		private var cam:Camera;
 		private var mic:Microphone;
 		private var vidLocal:Video;
-		private var vidStream:Video;
 		private var cameraSettings:H264VideoStreamSettings;
 		
 		private var host:String = "localhost";
 		private var appName:String = "live";
 		
+		private var api:ServiceAPI = new ServiceAPI();
+
 		public function Producer() {
 			this.addEventListener(Event.ADDED, onAdded);
 			
 			Log.trace("HOST: ", host, "; APP: ", appName);
+            
+            HTTPCookie.getCookies();
+            
+            var na:NetAPI = new NetAPI();
+            Log.trace(api.test());
 		}
 		
 		public function onAdded(e:Event):void {
@@ -40,7 +48,6 @@ package {
 			if (inited) return;
 			
 			inited = true;
-			Log.trace("Width: ", stage.stageWidth, "; Height: ", stage.stageHeight);
 			
 			if (root.loaderInfo.parameters["host"]) {
 				host = stage.loaderInfo.parameters["host"]
@@ -48,8 +55,6 @@ package {
 			if (root.loaderInfo.parameters["appName"]) {
 				appName = stage.loaderInfo.parameters["appName"]
 			}
-			
-			Log.trace("Width: ", stage.stageWidth, "; Height: ", stage.stageHeight);
 			
 			rtmpURL = "rtmp://" + host + "/" + appName;
 			
@@ -63,8 +68,28 @@ package {
 			
 			setCam();
 			setMic();
-			
-		}
+            setVideo();
+		
+            // info text
+            var myformat:TextFormat = new TextFormat();
+            myformat.size = 24;
+            myformat.align="center";				
+            myformat.font = "Wingdings";
+
+            var fieldSpeed:TextField = new TextField();
+            fieldSpeed.x = 5;
+            fieldSpeed.y = 5;
+            fieldSpeed.visible = true;
+            fieldSpeed.text = "本地视频";
+            fieldSpeed.textColor = 0x00FF00; 
+            fieldSpeed.selectable = false;
+            fieldSpeed.autoSize = TextFieldAutoSize.LEFT;
+            fieldSpeed.setTextFormat(myformat);
+            fieldSpeed.filters = [new DropShadowFilter()];
+            fieldSpeed.filters[0].color = 0xFFFFFF
+            addChild(fieldSpeed);
+
+        }
 		
 		// bandwidth detection on the server
 		public function onBWCheck(...arg):Number {
@@ -92,7 +117,6 @@ package {
 				nsOut.attachCamera(cam);
 				nsOut.publish("user1", "live");
 				
-				setVideo();
 			}
 			
 			Log.trace("NetStatus: ", e.info.code);
@@ -103,7 +127,7 @@ package {
 			cam = Camera.getCamera();
 			cam.setKeyFrameInterval(10);
 			cam.setMode(320,240,24);
-			cam.setQuality(0,85);
+			cam.setQuality(0,95);
 			
 		}
 		
@@ -128,14 +152,6 @@ package {
 			vidLocal.y = (stage.stageHeight - h) / 2;
 			vidLocal.attachCamera(cam);
 			addChild(vidLocal);
-			
-			// nsIn = new NetStream(nc);
-			// nsIn.play("user1");
-			// vidStream = new Video(cam.width,cam.height);
-			// vidStream.x = vidLocal.x + cam.width + 10;
-			// vidStream.y = vidLocal.y;
-			// vidStream.attachNetStream(nsIn);
-			// addChild(vidStream);
 			
 		}
 	}
