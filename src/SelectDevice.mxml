@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+    xmlns:mx="library://ns.adobe.com/flex/mx" 
+    xmlns:s="library://ns.adobe.com/flex/spark">
+    <s:layout>
+        <s:VerticalLayout/>
+    </s:layout> 
+
+    <fx:Script>
+        <![CDATA[
+        ]]> 
+    </fx:Script>
+        
+    <s:Panel width="75%" height="75%" title="选择设备"
+        horizontalCenter="0" verticalCenter="0">
+
+        <s:VGroup left="10" right="10" top="10" bottom="10">
+
+            <s:DropDownList id="cbxCamera" prompt="选择图像设备..." width="200" />
+            <s:DropDownList id="cbxMicrophone" prompt="选择声音设备..." width="200" />
+
+        </s:VGroup>
+
+    </s:Panel>
+</s:Application>
