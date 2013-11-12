@@ -21,6 +21,7 @@ package
             sock.addEventListener(Event.CLOSE, closeHandler);
             sock.addEventListener(ProgressEvent.SOCKET_DATA, socketDataHandler);
             sock.addEventListener(Event.COMPLETE, completeHandler);
+            
             Security.loadPolicyFile("http://"+host+":"+port+"/crossdomain.xml");
      
             sock.addEventListener(IOErrorEvent.IO_ERROR, function(e:IOErrorEvent):void{ Log.trace("ioerr"); } );

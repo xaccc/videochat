@@ -9,35 +9,44 @@
         object:focus { outline:none; }
         #myCamera { display:block;text-align:left; }
     </style>
+    <script type="text/javascript" src="jquery.min.js"></script>
     <script type="text/javascript" src="swfobject.js"></script>
     <script type="text/javascript">
 
-        var flashvars = {
-            host: '127.0.0.1'
-        };
         var params = {
             quality: "high",
             bgcolor: "#ffffff",
             allowscriptaccess: "sameDomain",
             allowfullscreen: "true"
         };
-        var attributes = {
-            id:"Producer",
-            name: "Producer",
-            align: "middle"
-        };
 
         swfobject.embedSWF(
             "Producer.swf", "myCamera", 
             "320", "240", 
             "11.0.0", "playerProductInstall.swf", 
-            flashvars, params, attributes);
+            { host: '127.0.0.1' }, params, { id:"Producer", name: "Producer" });
         
+        $(window).ready(function(){
+            $('#userList a').click(function(ev){
+                ev.preventDefault();
+
+                var id = 'consumer_' + Math.ceil(Math.random() * 100000);
+                
+                $('#videoList').append($('<div class="consumer" />').attr('id', id));
+                
+                swfobject.embedSWF(
+                    "Consumer.swf", id,
+                    "320", "240", 
+                    "11.0.0", "playerProductInstall.swf", 
+                    { host: '127.0.0.1' }, params, {id:id, name:'Consumer'});
+                
+            });
+        });
     </script>
 </head>
 <body bgcolor="#ffffff">
 
-    <div id="myCamera">
+    <div id="myCamera" class="producer">
         <p>
             To view this page ensure that Adobe Flash Player version 
             11.0.0 or greater is installed. 

@@ -5,7 +5,7 @@ package
 
 	final public class Log
 	{
-		public function Log()
+		function Log()
 		{
 		}
 		
@@ -16,15 +16,9 @@ package
 					msg += args[i];
 				}
 				ExternalInterface.call("console.log", msg);
-			} catch(e:Error)  {			
+			} catch(e:Error)  {
 			}
 		}
         
-        static public function sleep(counter:int, subsequentFunction:Function, args:Array): void {
-            if (counter > 0)
-                callLater(sleep, [counter - 1, subsequentFunction, args]);
-            else
-                callLater(subsequentFunction, args);
-        }        
 	}
 }

@@ -25,7 +25,6 @@ package {
 		private var cam:Camera;
 		private var mic:Microphone;
 		private var vidLocal:Video;
-		private var cameraSettings:H264VideoStreamSettings;
 		
 		private var host:String = "localhost";
 		private var appName:String = "live";
@@ -39,7 +38,6 @@ package {
             
             HTTPCookie.getCookies();
             
-            var na:NetAPI = new NetAPI();
             Log.trace(api.test());
 		}
 		
@@ -109,7 +107,7 @@ package {
 				nsOut = new NetStream(nc);
 				
 				// H.264 codec setting
-				cameraSettings = new H264VideoStreamSettings(); 
+				var cameraSettings:H264VideoStreamSettings = new H264VideoStreamSettings(); 
 				cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_1_2);
 				nsOut.videoStreamSettings = cameraSettings;
 				

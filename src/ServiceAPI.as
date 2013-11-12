@@ -19,15 +19,18 @@ package
             var params:Dictionary = new Dictionary();
             params.key1 = "value1";
             
-            return httpRequest("/hls.m3u8", params);
+            return httpRequest("/test.php", params);
         }
         
         
         private function httpRequest(path:String, params:Dictionary):String {
-            var url:String = "https://" + host + ":" + port + path;
+            var url:String = "http://" + host + ":" + port + path;
             var request:URLRequest = new URLRequest(url);
             var data:String;
+            
 
+            Log.trace("Load URL: ", url);
+            
             var variables:URLVariables = new URLVariables();
             for(var prop:String in params)
                 variables[prop] = params[prop];
@@ -36,13 +39,13 @@ package
 
             var urlLoader:URLLoader = new URLLoader();
             urlLoader.addEventListener(Event.COMPLETE, urlLoader_complete);
+            
             try
             {
                 urlLoader.load(request);
             }
             catch (error:Error)
             {
-                trace("Unable to load URL");
                 Log.trace("Unable to load URL: ", url);
             }
 
@@ -51,7 +54,7 @@ package
         
         private function urlLoader_complete(event:Event):void {
             var loader:URLLoader = URLLoader(event.target);
-            trace("Data Content: " + loader.data);
+            Log.trace("Data: " + loader.data);
         }
         
     }
