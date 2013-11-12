@@ -1,21 +1,60 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh_cn" lang="zh_cn">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=gb2312" />
-<title>Demo Publisher</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Demo Publisher</title>
+    <style type="text/css" media="screen"> 
+        html, body  { height:100%; }
+        body { margin:0; padding:0; overflow:auto; text-align:center; 
+               background-color: #ffffff; }   
+        object:focus { outline:none; }
+        #myCamera { display:block;text-align:left; }
+    </style>
+    <script type="text/javascript" src="swfobject.js"></script>
+    <script type="text/javascript">
+
+        var flashvars = {
+            host: '127.0.0.1'
+        };
+        var params = {
+            quality: "high",
+            bgcolor: "#000000",
+            allowscriptaccess: "sameDomain",
+            allowfullscreen: "true"
+        };
+        var attributes = {
+            id:"Producer",
+            name: "Producer",
+            align: "middle"
+        };
+
+        swfobject.embedSWF(
+            "Producer.swf", "myCamera", 
+            "320", "240", 
+            "11.0.0", "playerProductInstall.swf", 
+            flashvars, params, attributes);
+        
+    </script>
 </head>
 <body bgcolor="#ffffff">
 
-<script>
-document.write(['<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0" width="300" height="300" id="Demo" align="middle">',
-    '<param name="allowScriptAccess" value="sameDomain" />',
-    '<param name="allowFullScreen" value="false" />',
-    '<param name="movie" value="Publisher.swf?'+Math.random()+'" />',
-    '<param name="quality" value="high" />',
-    '<param name="bgcolor" value="#000000" />',
-    '<embed src="Publisher.swf" quality="high" bgcolor="#000000" width="300" height="300" name="Demo" align="middle" allowScriptAccess="sameDomain" allowFullScreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" />',
-    '<param name="FlashVars" value="host=webabcd&appName=29" />',
-'</object>'].join(''));
-</script>
+    <div id="myCamera">
+        <p>
+            To view this page ensure that Adobe Flash Player version 
+            11.0.0 or greater is installed. 
+        </p>
+        <script type="text/javascript"> 
+            var pageHost = ((document.location.protocol == "https:") ? "https://" : "http://"); 
+            document.write("<a href='http://www.adobe.com/go/getflashplayer'><img src='" 
+                            + pageHost + "www.adobe.com/images/shared/download_buttons/get_flash_player.gif' alt='Get Adobe Flash player' /></a>" ); 
+        </script> 
+    </div>
+    
+    <div id="videoList">
+    </div>
+    
+    <div id="userList">
+        <a href="user1">User1</a>
+    </div>
 
 </body>
 </html>
