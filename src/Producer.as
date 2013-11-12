@@ -15,6 +15,8 @@ package {
     import flash.text.TextFieldAutoSize;
     import flash.text.TextFormat;
     import flash.filters.DropShadowFilter;
+    
+    import mx.core.UIComponent;
 	
 	public class Producer extends Sprite {
 		
@@ -25,6 +27,7 @@ package {
 		private var cam:Camera;
 		private var mic:Microphone;
 		private var vidLocal:Video;
+        private var selector:SelectDevice;
 		
 		private var host:String = "localhost";
 		private var appName:String = "live";
@@ -32,13 +35,22 @@ package {
 		private var api:ServiceAPI = new ServiceAPI();
 
 		public function Producer() {
-			this.addEventListener(Event.ADDED, onAdded);
+            selector = new SelectDevice();
+            selector.x = 0;
+            selector.y = 0;
+            selector.width = 320;
+            selector.height = 240;
+
+            var com:UIComponent = new UIComponent();
+            com.addChild(selector);
+            addChild(com);
+
+			//this.addEventListener(Event.ADDED, onAdded);
 			
 			Log.trace("HOST: ", host, "; APP: ", appName);
             
-            HTTPCookie.getCookies();
-            
-            Log.trace(api.test());
+            //HTTPCookie.getCookies();
+            //Log.trace(api.test());
 		}
 		
 		public function onAdded(e:Event):void {
@@ -86,7 +98,6 @@ package {
             fieldSpeed.filters = [new DropShadowFilter()];
             fieldSpeed.filters[0].color = 0xFFFFFF
             addChild(fieldSpeed);
-
         }
 		
 		// bandwidth detection on the server

@@ -23,7 +23,7 @@
         swfobject.embedSWF(
             "Producer.swf", "myCamera", 
             "320", "240", 
-            "11.0.0", "playerProductInstall.swf", 
+            "11.1.0", "playerProductInstall.swf", 
             { host: '127.0.0.1' }, params, { id:"Producer", name: "Producer" });
         
         $(window).ready(function(){
@@ -37,7 +37,7 @@
                 swfobject.embedSWF(
                     "Consumer.swf", id,
                     "320", "240", 
-                    "11.0.0", "playerProductInstall.swf", 
+                    "11.1.0", "playerProductInstall.swf", 
                     { host: '127.0.0.1' }, params, {id:id, name:'Consumer'});
                 
             });
