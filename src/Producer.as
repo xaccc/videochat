@@ -35,20 +35,7 @@ package {
 		private var api:ServiceAPI = new ServiceAPI();
 
 		public function Producer() {
-            selector = new SelectDevice();
-            selector.x = 0;
-            selector.y = 0;
-            selector.width = 320;
-            selector.height = 240;
-
-            var com:UIComponent = new UIComponent();
-            com.addChild(selector);
-            addChild(com);
-
-			//this.addEventListener(Event.ADDED, onAdded);
-			
-			Log.trace("HOST: ", host, "; APP: ", appName);
-            
+			this.addEventListener(Event.ADDED, onAdded);
             //HTTPCookie.getCookies();
             //Log.trace(api.test());
 		}
@@ -67,7 +54,6 @@ package {
 			}
 			
 			rtmpURL = "rtmp://" + host + "/" + appName;
-			
 			Log.trace("connect ", rtmpURL);
 			
 			nc = new NetConnection();
