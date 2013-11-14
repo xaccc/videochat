@@ -13,7 +13,7 @@ class ApiController {
         render(contentType: "application/json") {
             Method = "publishUrl"
             UID = uid
-            ServiceURI = "rtmp://127.0.0.1/live/$uid"
+            ServiceURI = "rtmp://183.203.16.207:8100/live/${uid.encodeAsMD5()}"
         }
     }
     
@@ -21,6 +21,7 @@ class ApiController {
         render(contentType: "application/json") {
             Method = "liveUrl"
             UID = uid
+            LiveURI = "rtmp://183.203.16.207:8100/live/${uid.encodeAsMD5()}"
         }
     }
     
@@ -28,6 +29,8 @@ class ApiController {
         render(contentType: "application/json") {
             Method = "liveStatus"
             UID = uid
+            LiveURI = "rtmp://183.203.16.207:8100/live/${uid.encodeAsMD5()}"
+            Status = "online"
         }
     }
     
