@@ -5,28 +5,51 @@ package
     import flash.events.Event;
     import flash.system.Security;
 
-
     public class ServiceAPI {
     
-        private var host:String = "localhost";
-        private var port:int = 80;
+        private var remote_scheme:String = "http";
+        private var remote_host:String = "localhost";
+        private var remote_port:int = 80;
+        private var remote_app:String = "/videochat"
 
-        public function ServiceAPI():void {
+        private var request_busy:Boolean = false; // smp
+        private var request_function:String;
+        private var response_data:String;
+        private var response_succeeded:Boolean = false;
+        private var response_callback:Function = null;
+
+        public function ServiceAPI(cb:Function, host:String = "localhost", port:int = 80, app:String = "/videochat"):void {
+            remote_host = host;
+            remote_port = port;
+            remote_app = app;
+            response_callback = cb;
         }
         
         
-        public function test():String {
-            var params:Dictionary = new Dictionary();
-            params.key1 = "value1";
+        
+        public function publishUrl(uid:String):void {
+            httpRequest("publishUrl", "/api/publishUrl", {"uid":uid});
+        }
+        
+        public function liveUrl(uid:String):void {
+            httpRequest("liveUrl", "/api/liveUrl", {"uid":uid});
+        }
+        
+        public function liveStatus(uid:String):void {
+            httpRequest("liveStatus", "/api/liveStatus", {"uid":uid});
+        }
+        
+        
+        
+        private function httpRequest(functionName:String, path:String, params:Object):void {
+            // smp
+            if (request_busy) throw new Error("ServiceAPI is busy!");
+            request_function = functionName;
+            request_busy = true;
+            response_succeeded = false;
             
-            return httpRequest("/test.php", params);
-        }
-        
-        
-        private function httpRequest(path:String, params:Dictionary):String {
-            var url:String = "http://" + host + ":" + port + path;
+            var url:String = remote_scheme + "://" + remote_host + ":" + remote_port + remote_app + path;
             var request:URLRequest = new URLRequest(url);
-            var data:String;
             
 
             Log.trace("Load URL: ", url);
@@ -34,8 +57,9 @@ package
             var variables:URLVariables = new URLVariables();
             for(var prop:String in params)
                 variables[prop] = params[prop];
+                
             request.data = variables;
-            request.method = URLRequestMethod.GET;
+            request.method = URLRequestMethod.POST;
 
             var urlLoader:URLLoader = new URLLoader();
             urlLoader.addEventListener(Event.COMPLETE, urlLoader_complete);
@@ -43,18 +67,35 @@ package
             try
             {
                 urlLoader.load(request);
+                Log.trace("Load URL finished!");
             }
             catch (error:Error)
             {
-                Log.trace("Unable to load URL: ", url);
+                // smp
+                response_succeeded = false;
+                request_busy = false;
+                
+                Log.trace("URL Load Error: ", error.message, "(", error.errorID, ")");
+                
+                throw error;
             }
-
-            return data;
         }
         
         private function urlLoader_complete(event:Event):void {
+        
             var loader:URLLoader = URLLoader(event.target);
-            Log.trace("Data: " + loader.data);
+            response_data = loader.data;
+            
+            // smp
+            response_succeeded = true;
+            request_busy = false;
+
+            try {
+                response_callback.call(null, request_function, response_data);
+            } catch (error:Error) {
+                Log.trace("response callback error: ", error.message, ", response text: ", response_data);
+            }
+            
         }
         
     }

@@ -26,7 +26,7 @@
             "Producer.swf", "myCamera", 
             "320", "240", 
             "11.1.0", "playerProductInstall.swf", 
-            { host: '127.0.0.1' }, params, { id:"Producer", name: "Producer" });
+            { host: '183.203.16.207', port: 8108, uid: 'user1' }, params, { id:"Producer", name: "Producer" });
         
         $(window).ready(function(){
             $('#userList a').click(function(ev){
@@ -40,7 +40,7 @@
                     "Consumer.swf", id,
                     "320", "240", 
                     "11.1.0", "playerProductInstall.swf", 
-                    { host: '127.0.0.1' }, params, {id:id, name:'Consumer'});
+                    { host: '183.203.16.207', port: 8108, uid: $(this).attr('href') }, params, {id:id, name:'Consumer'});
                 
             });
         });
