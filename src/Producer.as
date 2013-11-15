@@ -15,6 +15,7 @@ package {
     import flash.text.TextFieldAutoSize;
     import flash.text.TextFormat;
     import flash.filters.DropShadowFilter;
+    import flash.utils.*;
     
     import mx.core.UIComponent;
     
@@ -27,6 +28,8 @@ package {
         private var cam:Camera;
         private var mic:Microphone;
         private var vidLocal:Video;
+        private var cameraSettings:H264VideoStreamSettings;
+        private var established:Boolean = false;
         
         private var remote_host:String = "localhost";
         private var remote_port:int = 80;
@@ -49,10 +52,10 @@ package {
             
             init();
             
-            api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
+            if (api == null)
+                api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
 
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
-            Log.trace("stage size = ", stage.stageWidth, "x", stage.stageHeight);
             
             api.publishUrl(uid);
         }
@@ -60,25 +63,31 @@ package {
         public function apiCallback(funcName:String, response:Object):void {
             if (funcName == "publishUrl") {
             
-                var idx:int = response.ServiceURI.lastIndexOf("/");
+                var idx:int = response.ServiceURI ? response.ServiceURI.lastIndexOf("/") : -1;
                 
                 if (idx >= 0) {
-                    Log.trace("ServiceURI = ", response.ServiceURI);
                     rtmpURL = response.ServiceURI.substr(0, idx);
                     rtmpInstance = response.ServiceURI.substr(idx+1);
+                } else if (response.Host) {
+                    rtmpURL = "rtmp://" + response.Host 
+                              + ":" + response.Port 
+                              + "/" + response.Application;
+                              
+                    rtmpInstance = response.Session;
+                } else {
+                    throw new Error("服务通讯故障");
+                }
                     
-                    Log.trace("RTMP URL: ", rtmpURL);
-                    Log.trace("RTMP INS: ", rtmpInstance);
 
-                    // connect media server
+                // connect media server
+                if (nc == null) {
                     nc = new NetConnection();
                     nc.addEventListener(NetStatusEvent.NET_STATUS, checkCon);
                     nc.client = this;
-                    
-                    nc.connect(rtmpURL);
-                } else {
-                    Log.trace("ServiceURI = ", response.ServiceURI);
                 }
+                
+                nc.connect(rtmpURL);
+                
             }
         }
         
@@ -114,26 +123,40 @@ package {
         public function onBWDone(...arg):void {
             var p_bw:Number = -1; 
             if (arg.length > 0) p_bw = arg[0]; 
-            Log.trace("bandwidth = ", p_bw, " Kbps."); 
+            // Log.trace("bandwidth = ", p_bw, " Kbps."); 
         }
         
-        private function checkCon(e:NetStatusEvent):void {
-            var connected:Boolean = e.info.code == "NetConnection.Connect.Success";
+        private function checkCon(event:NetStatusEvent):void {
+            var connected:Boolean = event.info.code == "NetConnection.Connect.Success";
             
             if (connected) {
-                nsOut = new NetStream(nc);
+                if (nsOut == null)
+                    nsOut = new NetStream(nc);
                 
                 // H.264 codec setting
-                var cameraSettings:H264VideoStreamSettings = new H264VideoStreamSettings(); 
+                if (cameraSettings == null)
+                    cameraSettings = new H264VideoStreamSettings(); 
+                    
                 cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_1_2);
                 nsOut.videoStreamSettings = cameraSettings;
                 
                 nsOut.attachAudio(mic);
                 nsOut.attachCamera(cam);
                 nsOut.publish(rtmpInstance, "live");
+                
+                established = true;
+            // } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
+            // } else if (established && event.info.code == "NetConnection.Connect.Closed") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
+            // } else if (established && event.info.code == "NetConnection.Connect.Failed") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
             }
             
-            Log.trace("NetStatus: ", e.info.code);
+            Log.trace("NetStatus: ", event.info.code);
         }
         
         private function setCam():void {
@@ -157,7 +180,8 @@ package {
             var w:Number = stage.stageWidth;
             var h:Number = cam.height / cam.width * stage.stageWidth;
             
-            vidLocal = new Video(w,h);
+            if (vidLocal == null)
+                vidLocal = new Video(w,h);
             vidLocal.x = 0;
             vidLocal.y = (stage.stageHeight - h) / 2;
             vidLocal.attachCamera(cam);

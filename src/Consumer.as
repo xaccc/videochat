@@ -6,6 +6,7 @@ package
     import flash.net.NetConnection;
     import flash.net.NetStream;
     import flash.media.Video;
+    import flash.utils.*;
     
     import flash.text.TextField;
     import flash.text.TextFieldAutoSize;
@@ -19,6 +20,7 @@ package
         private var nc:NetConnection;
         private var nsIn:NetStream;
         private var vidStream:Video;
+        private var established:Boolean = false;
         
         private var title:String = "直播";
         
@@ -45,10 +47,10 @@ package
             
             init();
             
-            api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
-
+            if (api == null)
+                api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
+            
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
-            Log.trace("stage size = ", stage.stageWidth, "x", stage.stageHeight);
             
             api.liveUrl(uid);
         }
@@ -56,25 +58,28 @@ package
         public function apiCallback(funcName:String, response:Object):void {
             if (funcName == "liveUrl") {
             
-                var idx:int = response.LiveURI.lastIndexOf("/");
+                var idx:int = response.LiveURI ? response.LiveURI.lastIndexOf("/") : -1;
                 
                 if (idx >= 0) {
-                    Log.trace("LiveURI = ", response.LiveURI);
                     rtmpURL = response.LiveURI.substr(0, idx);
                     rtmpInstance = response.LiveURI.substr(idx+1);
+                } else {
+                    rtmpURL = "rtmp://" + response.Host 
+                              + ":" + response.Port 
+                              + "/" + response.Application;
+                              
+                    rtmpInstance = response.Session;
+                }
                     
-                    Log.trace("RTMP URL: ", rtmpURL);
-                    Log.trace("RTMP INS: ", rtmpInstance);
-
-                    // connect media server
+                // connect media server
+                if (nc == null) {
                     nc = new NetConnection();
                     nc.addEventListener(NetStatusEvent.NET_STATUS, checkCon);
                     nc.client = this;
-                    
-                    nc.connect(rtmpURL);
-                } else {
-                    Log.trace("LiveURI = ", response.LiveURI);
                 }
+                
+                nc.connect(rtmpURL);
+                
             }
         }
 
@@ -108,18 +113,27 @@ package
         public function onBWDone(...arg):void {
             var p_bw:Number = -1; 
             if (arg.length > 0) p_bw = arg[0]; 
-            Log.trace("bandwidth = ", p_bw, " Kbps."); 
+            // Log.trace("bandwidth = ", p_bw, " Kbps."); 
         }
         
-        protected function checkCon(event:NetStatusEvent):void
-        {
-            
+        protected function checkCon(event:NetStatusEvent):void {
             var connected:Boolean = event.info.code == "NetConnection.Connect.Success";
             
             if (connected) {
-                nsIn = new NetStream(nc);
+                if (nsIn == null)
+                    nsIn = new NetStream(nc);
                 nsIn.play(rtmpInstance);
                 vidStream.attachNetStream(nsIn);
+                established = true;
+            // } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
+            // } else if (established && event.info.code == "NetConnection.Connect.Closed") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
+            // } else if (established && event.info.code == "NetConnection.Connect.Failed") {
+                // // reconnect waitfor 1 second
+                // setTimeout(nc.connect, 1000, rtmpURL);
             }
             
             trace("NetStatus: " + event.info.code);
@@ -130,7 +144,8 @@ package
             var w:Number = stage.stageWidth;
             var h:Number = 3 / 4 * stage.stageWidth;
             
-            vidStream = new Video(w, h);
+            if (vidStream == null)
+                vidStream = new Video(w, h);
             vidStream.x = 0;
             vidStream.y = (stage.stageHeight - h) / 2;
             addChild(vidStream);

@@ -52,8 +52,6 @@ package
             var request:URLRequest = new URLRequest(url);
             
 
-            Log.trace("Load URL: ", url);
-            
             var variables:URLVariables = new URLVariables();
             for(var prop:String in params)
                 variables[prop] = params[prop];
@@ -67,7 +65,6 @@ package
             try
             {
                 urlLoader.load(request);
-                Log.trace("Load URL finished!");
             }
             catch (error:Error)
             {
