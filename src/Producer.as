@@ -20,9 +20,9 @@ package {
     
     public class Producer extends Sprite {
         
-        private var nc:NetConnection;
         private var rtmpURL:String;
         private var rtmpInstance:String;
+        private var nc:NetConnection;
         private var nsOut:NetStream;
         private var cam:Camera;
         private var mic:Microphone;
@@ -38,8 +38,6 @@ package {
 
         public function Producer() {
 
-            init();
-            
             if (root.loaderInfo.parameters["host"])
                 remote_host = stage.loaderInfo.parameters["host"];
             if (root.loaderInfo.parameters["port"])
@@ -49,6 +47,8 @@ package {
             if (root.loaderInfo.parameters["app"])
                 remote_app = stage.loaderInfo.parameters["app"];
             
+            init();
+            
             api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
 
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
@@ -57,24 +57,15 @@ package {
             api.publishUrl(uid);
         }
         
-        public function apiCallback(funcName:String, responseText:String):void {
+        public function apiCallback(funcName:String, response:Object):void {
             if (funcName == "publishUrl") {
             
-                var data:Object;
-                
-                try {
-                    data = JSON.parse(responseText)
-                } catch (error:Error) {
-                    Log.trace("JSON.parse Error: ", error.message);
-                    throw error;
-                }
-                
-                var idx:int = data.ServiceURI.lastIndexOf("/");
+                var idx:int = response.ServiceURI.lastIndexOf("/");
                 
                 if (idx >= 0) {
-                    Log.trace("ServiceURI = ", data.ServiceURI);
-                    rtmpURL = data.ServiceURI.substr(0, idx);
-                    rtmpInstance = data.ServiceURI.substr(idx+1);
+                    Log.trace("ServiceURI = ", response.ServiceURI);
+                    rtmpURL = response.ServiceURI.substr(0, idx);
+                    rtmpInstance = response.ServiceURI.substr(idx+1);
                     
                     Log.trace("RTMP URL: ", rtmpURL);
                     Log.trace("RTMP INS: ", rtmpInstance);
@@ -86,7 +77,7 @@ package {
                     
                     nc.connect(rtmpURL);
                 } else {
-                    Log.trace("ServiceURI = ", data.ServiceURI);
+                    Log.trace("ServiceURI = ", response.ServiceURI);
                 }
             }
         }
@@ -147,7 +138,7 @@ package {
         
         private function setCam():void {
             cam = Camera.getCamera();
-            cam.setKeyFrameInterval(10);
+            cam.setKeyFrameInterval(5);
             cam.setMode(320,240,24);
             cam.setQuality(0,95);
         }
@@ -155,10 +146,11 @@ package {
         private function setMic():void {
             mic = Microphone.getMicrophone();
             mic.codec = "Speex";
-            mic.encodeQuality = 6;
+            mic.encodeQuality = 8;
             mic.gain = 85;
             mic.rate = 11;
             mic.setSilenceLevel(15,2000);
+            mic.setUseEchoSuppression(true);
         }
         
         private function setVideo():void {

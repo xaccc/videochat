@@ -91,7 +91,7 @@ package
             request_busy = false;
 
             try {
-                response_callback.call(null, request_function, response_data);
+                response_callback.call(null, request_function, JSON.parse(response_data));
             } catch (error:Error) {
                 Log.trace("response callback error: ", error.message, ", response text: ", response_data);
             }

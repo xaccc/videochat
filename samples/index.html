@@ -22,50 +22,68 @@
             allowfullscreen: "true"
         };
 
-        swfobject.embedSWF(
-            "Producer.swf", "myCamera", 
-            "320", "240", 
-            "11.1.0", "playerProductInstall.swf", 
-            { host: '183.203.16.207', port: 8108, uid: 'user1' }, params, { id:"Producer", name: "Producer" });
-        
-        $(window).ready(function(){
-            $('#userList a').click(function(ev){
+        $(document).ready(function(){
+            
+            $('#btnPublish').click(function(ev){
                 ev.preventDefault();
+                var uid = $('#UID').val();
 
+                swfobject.embedSWF(
+                    "Producer.swf", "myCamera", 
+                    "320", "240", 
+                    "11.1.0", "playerProductInstall.swf", 
+                    { host: '183.203.16.207', port: 8108, uid: uid }, params, { id:"Producer", name: "Producer" });
+                    
+                $('#mySetting').hide();
+                $('#myView').show();
+            });
+            
+            $('#btnLive').click(function(ev){
+                ev.preventDefault();
+                var uid = $('#liveUID').val();
+                
                 var id = 'consumer_' + Math.ceil(Math.random() * 100000);
                 
-                $('#videoList').append($('<div class="consumer" />').attr('id', id));
+                $('#videoList').append(
+                    $('<div class="consumer" />').append($('<div />').attr('id', id)));
                 
                 swfobject.embedSWF(
                     "Consumer.swf", id,
                     "320", "240", 
                     "11.1.0", "playerProductInstall.swf", 
-                    { host: '183.203.16.207', port: 8108, uid: $(this).attr('href') }, params, {id:id, name:'Consumer'});
+                    { host: '183.203.16.207', port: 8108, uid: uid }, params, {id:id, name:'Consumer'});
                 
             });
+            
         });
     </script>
 </head>
 <body bgcolor="#ffffff">
 
-    <div id="myCamera" class="producer">
-        <p>
-            To view this page ensure that Adobe Flash Player version 
-            11.0.0 or greater is installed. 
-        </p>
-        <script type="text/javascript"> 
-            var pageHost = ((document.location.protocol == "https:") ? "https://" : "http://"); 
-            document.write("<a href='http://www.adobe.com/go/getflashplayer'><img src='" 
-                            + pageHost + "www.adobe.com/images/shared/download_buttons/get_flash_player.gif' alt='Get Adobe Flash player' /></a>" ); 
-        </script> 
+    <div id="mySetting">
+        <label for="UID">用户ID：<input type="text" id="UID" name="UID" value="user1" /></label>&nbsp;<a href="#" id="btnPublish">开始直播</a>
     </div>
-    
-    <div id="videoList">
+
+    <div id="myView" class="producer" style="display:none;">
+        <div id="myCamera">
+            <p>
+                To view this page ensure that Adobe Flash Player version 
+                11.0.0 or greater is installed. 
+            </p>
+            <script type="text/javascript"> 
+                var pageHost = ((document.location.protocol == "https:") ? "https://" : "http://"); 
+                document.write("<a href='http://www.adobe.com/go/getflashplayer'><img src='" 
+                                + pageHost + "www.adobe.com/images/shared/download_buttons/get_flash_player.gif' alt='Get Adobe Flash player' /></a>" ); 
+            </script> 
+        </div>
     </div>
     
     <div id="userList">
-        <a href="user1">User1</a>
+        <label for="liveUID">用户ID：<input type="text" id="liveUID" name="liveUID" value="user1" /></label>&nbsp;<a href="#" id="btnLive">查看直播</a>
     </div>
 
+    <div id="videoList">
+    </div>
+    
 </body>
 </html>

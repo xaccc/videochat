@@ -7,46 +7,98 @@ package
     import flash.net.NetStream;
     import flash.media.Video;
     
+    import flash.text.TextField;
+    import flash.text.TextFieldAutoSize;
+    import flash.text.TextFormat;
+    import flash.filters.DropShadowFilter;
+
     public class Consumer extends Sprite
     {
-        private var inited:Boolean = false;
         private var rtmpURL:String;
+        private var rtmpInstance:String;
         private var nc:NetConnection;
-        private var host:String = "localhost";
-        private var appName:String = "live";
         private var nsIn:NetStream;
         private var vidStream:Video;
         
+        private var title:String = "直播";
+        
+        private var remote_host:String = "localhost";
+        private var remote_port:int = 80;
+        private var remote_app:String = "/videochat"
+        
+        private var uid:String;
+        
+        private var api:ServiceAPI;
+
         public function Consumer()
         {
-            this.addEventListener(Event.ADDED, onAdded);
+            if (root.loaderInfo.parameters["host"])
+                remote_host = stage.loaderInfo.parameters["host"];
+            if (root.loaderInfo.parameters["port"])
+                remote_port = parseInt(stage.loaderInfo.parameters["port"]);
+            if (root.loaderInfo.parameters["uid"])
+                uid = stage.loaderInfo.parameters["uid"];
+            if (root.loaderInfo.parameters["app"])
+                remote_app = stage.loaderInfo.parameters["app"];
+            if (root.loaderInfo.parameters["name"])
+                title = stage.loaderInfo.parameters["name"];
+            
+            init();
+            
+            api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
+
+            Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
+            Log.trace("stage size = ", stage.stageWidth, "x", stage.stageHeight);
+            
+            api.liveUrl(uid);
         }
         
-        protected function onAdded(event:Event):void
+        public function apiCallback(funcName:String, response:Object):void {
+            if (funcName == "liveUrl") {
+            
+                var idx:int = response.LiveURI.lastIndexOf("/");
+                
+                if (idx >= 0) {
+                    Log.trace("LiveURI = ", response.LiveURI);
+                    rtmpURL = response.LiveURI.substr(0, idx);
+                    rtmpInstance = response.LiveURI.substr(idx+1);
+                    
+                    Log.trace("RTMP URL: ", rtmpURL);
+                    Log.trace("RTMP INS: ", rtmpInstance);
+
+                    // connect media server
+                    nc = new NetConnection();
+                    nc.addEventListener(NetStatusEvent.NET_STATUS, checkCon);
+                    nc.client = this;
+                    
+                    nc.connect(rtmpURL);
+                } else {
+                    Log.trace("LiveURI = ", response.LiveURI);
+                }
+            }
+        }
+
+        protected function init():void
         {
-            if (inited) return;
-            inited = true;
-            
-            trace("Width: "+stage.stageWidth+"; Height: "+stage.stageHeight);
-            
-            if (root.loaderInfo.parameters["host"]) {
-                host = stage.loaderInfo.parameters["host"]
-            }
-            if (root.loaderInfo.parameters["appName"]) {
-                appName = stage.loaderInfo.parameters["appName"]
-            }
-            
-            rtmpURL = "rtmp://" + host + "/" + appName;
-            
-            trace("connect " + rtmpURL);
-            
-            nc = new NetConnection();
-            nc.addEventListener(NetStatusEvent.NET_STATUS, checkCon);
-            nc.client = this;
-            
-            nc.connect(rtmpURL);
-                        
-            
+            setVideo();
+
+            // info text
+            var myformat:TextFormat = new TextFormat();
+            myformat.size = 24;
+            myformat.align="center";                
+            myformat.font = "Wingdings";
+            var fieldSpeed:TextField = new TextField();
+            fieldSpeed.x = 5;
+            fieldSpeed.y = 5;
+            fieldSpeed.visible = true;
+            fieldSpeed.text = title;
+            fieldSpeed.textColor = 0x00FF00; 
+            fieldSpeed.selectable = false;
+            fieldSpeed.autoSize = TextFieldAutoSize.LEFT;
+            fieldSpeed.setTextFormat(myformat);
+            fieldSpeed.filters = [new DropShadowFilter()];
+            fieldSpeed.filters[0].color = 0xFFFFFF
+            addChild(fieldSpeed);
         }
         
         // bandwidth detection on the server
@@ -65,7 +117,9 @@ package
             var connected:Boolean = event.info.code == "NetConnection.Connect.Success";
             
             if (connected) {
-                setVideo();
+                nsIn = new NetStream(nc);
+                nsIn.play(rtmpInstance);
+                vidStream.attachNetStream(nsIn);
             }
             
             trace("NetStatus: " + event.info.code);
@@ -76,13 +130,10 @@ package
             var w:Number = stage.stageWidth;
             var h:Number = 3 / 4 * stage.stageWidth;
             
-             nsIn = new NetStream(nc);
-             nsIn.play("user1");
-             vidStream = new Video(w, h);
-             vidStream.x = 0;
-             vidStream.y = (stage.stageHeight - h) / 2;
-             vidStream.attachNetStream(nsIn);
-             addChild(vidStream);
+            vidStream = new Video(w, h);
+            vidStream.x = 0;
+            vidStream.y = (stage.stageHeight - h) / 2;
+            addChild(vidStream);
         }
     }
 }
