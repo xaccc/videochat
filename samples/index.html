@@ -1,18 +1,16 @@
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh_cn" lang="zh_cn">
+<!DOCTYPE HTML>
+<html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Demo Publisher</title>
+    <title>视频聊天</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
     <style type="text/css" media="screen"> 
-        html, body  { height:100%; }
-        body { margin:0; padding:0; overflow:auto; text-align:center; 
-               background-color: #ffffff; }   
-        object:focus { outline:none; }
-        #myCamera { display:block;text-align:left; }
-        #videoList {margin:10px;}
-        #videoList > object {padding:10px;}
     </style>
     <script type="text/javascript" src="jquery.min.js"></script>
     <script type="text/javascript" src="swfobject.js"></script>
+    <script type="text/javascript" src="strophe.min.js"></script>
+    <script type="text/javascript" src="strophe.muc.min.js"></script>
+    <script type="text/javascript" src="chat.js"></script>
     <script type="text/javascript">
 
         var params = {
@@ -58,8 +56,30 @@
         });
     </script>
 </head>
-<body bgcolor="#ffffff">
+<body>
+<div class="body">
+    <div id='login'>
+        <form name='cred'>
+            <label for='jid'>JID:</label>
+            <input type='text' id='jid' value="daijj" />
+            <label for='pass'>Password:</label>
+            <input type='password' id='pass' />
+            <input type='button' id='connect' value='登录' />
+            <input type='button' id='connectAnonymous' value='游客' />
+        </form>
+    </div>
+    
+    <div id='message'></div>
+    
+    <div>
+        <form name="msessage">
+            <input type='text' id='to' value="test" />
+            <input type='text' id='msg' value="" />
+            <input type='button' id='send' value='Send' />
+        </form>
+    </div>
 
+    
     <div id="mySetting">
         <label for="UID">用户ID：<input type="text" id="UID" name="UID" value="user1" /></label>&nbsp;<a href="#" id="btnPublish">开始直播</a>
     </div>
@@ -84,6 +104,6 @@
 
     <div id="videoList">
     </div>
-    
+</div>
 </body>
 </html>
