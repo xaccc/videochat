@@ -17,6 +17,9 @@ package {
     import flash.filters.DropShadowFilter;
     import flash.utils.*;
     
+    import flash.system.Security;
+    import flash.system.SecurityPanel;
+    
     import mx.core.UIComponent;
     
     public class Producer extends Sprite {
@@ -161,6 +164,7 @@ package {
         
         private function setCam():void {
             cam = Camera.getCamera();
+            Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
             cam.setMode(320,240,24);
             cam.setQuality(0,95);
@@ -168,11 +172,13 @@ package {
         
         private function setMic():void {
             mic = Microphone.getMicrophone();
+            Security.showSettings(SecurityPanel.MICROPHONE);
             mic.codec = "Speex";
-            mic.encodeQuality = 8;
+            mic.encodeQuality = 9;
             mic.gain = 85;
             mic.rate = 11;
-            mic.setSilenceLevel(15,2000);
+            mic.enableVAD = false;
+            mic.setSilenceLevel(100);
             mic.setUseEchoSuppression(true);
         }
         
