@@ -21,10 +21,10 @@ function onConnect(status)
     } else if (status == Strophe.Status.DISCONNECTED) {
         $('[name=msessage]').hide();
         console.log('disconnected.');
-        $('#connect').get(0).value = 'connect';
+        $('#connect').get(0).value = '登录';
         connection.connect(connection.jid, $('#pass').get(0).value, onConnect);
     } else if (status == Strophe.Status.CONNECTED) {
-        $('#connect').get(0).value = 'disconnect';
+        $('#connect').get(0).value = '注销';
         console.log('connected.');
         console.log('JID: ' + connection.jid);
         console.log('SID: ' + connection.sid);
@@ -103,8 +103,8 @@ $(document).ready(function () {
 
     $('#connect').bind('click', function () {
         var button = $('#connect').get(0);
-        if (button.value == 'connect') {
-            button.value = 'disconnect';
+        if (button.value == '登录') {
+            button.value = '注销';
             
             var jidField = $('#jid').get(0);
             var passField = $('#pass').get(0);
@@ -113,7 +113,7 @@ $(document).ready(function () {
                                jidField.value == '' ? null : passField.value,
                                onConnect);
         } else {
-            button.value = 'connect';
+            button.value = '登录';
             connection.disconnect();
         }
     });
@@ -121,6 +121,7 @@ $(document).ready(function () {
         $('#jid').get(0).value = '';
         $('#pass').get(0).value = '';
         $('#connect').trigger('click');
+        $(this).hide();
     });
     $('#pass').keypress(function(event){
         if (event.which == 13) {
