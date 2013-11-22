@@ -16,3 +16,4 @@ bin-release/
 target/
 
 player/obj/
+player/gen/

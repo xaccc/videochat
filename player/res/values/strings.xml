@@ -4,5 +4,8 @@
     <string name="app_name">VideoChat</string>
     <string name="menu_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
+    <string name="listen">收听</string>
+    <string name="stop">停止</string>
+    <string name="rtmp_url">rtmp://182.203.16.207:8100/live/24c9e15e52afc47c225b757e7bee1f9d</string>
 
 </resources>

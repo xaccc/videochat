@@ -1,6 +1,6 @@
-package cn.cloudstep.sayhi;
+package cn.videochat;
 
-import cn.cloudstep.sayhi.SayHi.OnEventCallback;
+import cn.videochat.VideoChat.OnEventCallback;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -10,43 +10,38 @@ import android.widget.Button;
 import android.widget.EditText;
 
 public class MainActivity extends Activity {
-	SayHi say;
-	Button bt1, bt2;
-	EditText server,stream1,stream2;
+	VideoChat vc;
+	Button btnListen, btnStop;
+	EditText txtRTMPUrl;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		
 		setContentView(R.layout.activity_main);
-		server = (EditText)findViewById(R.id.editText1);
-		stream1 = (EditText)findViewById(R.id.editText2);
-		stream2 = (EditText)findViewById(R.id.editText3);
-		say = new SayHi();
-		say.Init();
-		say.setOnEventCallback(new OnEventCallback() {
-			
+		txtRTMPUrl = (EditText)findViewById(R.id.editText1);
+		
+		vc = new VideoChat();
+		vc.Init();
+		vc.setOnEventCallback(new OnEventCallback() {
 			@Override
 			public void onEvent(int event) {
-				if(event == 3)
-				{
-					say.OpenPlayer(server.getText().toString()+"/"+stream1.getText().toString()+" live=1");
-				}
 			}
 		});
-		bt1 = (Button) findViewById(R.id.button1);
-		bt2 = (Button) findViewById(R.id.button2);
-		bt1.setOnClickListener(new OnClickListener() {
-
+		
+		btnListen = (Button) findViewById(R.id.button1);
+		btnListen.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				say.OpenPublisher(server.getText().toString()+"/"+stream2.getText().toString()+" live=1");
+				vc.OpenPlayer(txtRTMPUrl.getText().toString());
 			}
 		});
-		bt2.setOnClickListener(new OnClickListener() {
 
+		btnStop = (Button) findViewById(R.id.button2);
+		btnStop.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				say.ClosePublisher();
-				say.ClosePlayer();
+				vc.ClosePublisher();
+				vc.ClosePlayer();
 			}
 		});
 	}
