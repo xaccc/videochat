@@ -14,3 +14,5 @@ bin-release/
 *.swf
 
 target/
+
+player/obj/
