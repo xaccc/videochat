@@ -7,6 +7,8 @@
  */
  
 #include "VideoChat.h"
+#include "VideoChat_jni.h"
+#include "VideoChat_OnEventCallback_jni.h"
 
 
 /*
@@ -54,9 +56,9 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer(JNIEnv *env, jobje
  * Method:    ClosePlayer
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_cn_cloudstep_sayhi_SayHi_ClosePlayer(JNIEnv *env, jobject jobj)
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer(JNIEnv *env, jobject jobj)
 {
-    LOGI("Java_cn_videochat_VideoChat_ClosePublisher");
+    LOGI("Java_cn_videochat_VideoChat_ClosePlayer");
 }
 
 /*

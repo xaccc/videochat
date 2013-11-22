@@ -1,7 +1,6 @@
 #if !defined(__VIDEOCHAT_H__)
 #define __VIDEOCHAT_H__
 
-#include <jni.h>
 #include <assert.h>
 #include <string.h>
 
@@ -37,5 +36,12 @@ extern "C" {
 
 #define LOG_TAG "VideoChat.NDK"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
+
+
+
+
+
+
+
 
 #endif //__VIDEOCHAT_H__
