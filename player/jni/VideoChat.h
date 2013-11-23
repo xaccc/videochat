@@ -89,6 +89,7 @@ public:
     int decode(char* data, int data_size, short* output_buffer);
 
     int output_buffer_size() { return dec_frame_size * sizeof(short); }
+    int audio_frame_size() { return dec_frame_size; }
 
 private:
     int dec_frame_size;
@@ -120,7 +121,10 @@ private:
     RTMP* pRtmp;
     int m_isOpenPlayer;
 
+    char* szRTMPUrl;
+
     pthread_t thread_play;
+    pthread_attr_t thread_attr;
 };
 
 
