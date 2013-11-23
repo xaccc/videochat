@@ -106,7 +106,7 @@ int AudioOutput::play(short* data, int dataSize)
    // LOGI("putAudioQueue");
     memcpy(playerBuffer + playerBufferIndex, data, dataSize * sizeof(short));
     playerBufferIndex += dataSize;
-    LOGI("playerBufferIndex %d   all:%d", playerBufferIndex, AUDIO_FRAMES_SIZE);
+    LOGI("[AudioOutput::play] playerBufferIndex=%d, All=%d", playerBufferIndex, AUDIO_FRAMES_SIZE);
 
     if(playerBufferIndex >= AUDIO_FRAMES_SIZE)
     {
@@ -150,6 +150,7 @@ SpeexCodec::~SpeexCodec()
 
 int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
 {
+    LOGI( "[SpeexCodec::decode] packet size=%d\n", data_size);
     speex_bits_read_from(&dbits, data, data_size);
     speex_decode_int(dec_state, &dbits, output_buffer);
 }
@@ -161,45 +162,38 @@ int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
 ///////////////////////////////////////////////////////////////////////////////
 
 VideoChat::VideoChat()
-    : m_isOpenPlayer(0)
+    : m_isOpenPlayer(0), szRTMPUrl(NULL)
 {
+    pthread_attr_init(&thread_attr);
+    pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
 }
 
 VideoChat::~VideoChat()
 {
+    if (szRTMPUrl) delete[] szRTMPUrl;
 }
 
 int VideoChat::Init()
 {
+    pSpeexCodec = new SpeexCodec();
+    pAudioOutput = new AudioOutput();
     return 0;
 }
 
 void VideoChat::Release()
 {
+    delete pSpeexCodec;
+    delete pAudioOutput;
 }
 
-int VideoChat::Play(const char* szRTMPUrl)
+int VideoChat::Play(const char* url)
 {
     if (m_isOpenPlayer > 0) return -1;
-    pRtmp = RTMP_Alloc();
-    RTMP_Init(pRtmp);
-    LOGI("Play RTMP_Init %s\n", szRTMPUrl);
-    if (!RTMP_SetupURL(pRtmp, szRTMPUrl)) {
-        LOGI("Play RTMP_SetupURL error\n");
-        RTMP_Free(pRtmp);
-        return -1;
-    }
-
-    if (!RTMP_Connect(pRtmp, NULL) || !RTMP_ConnectStream(pRtmp, 0)) {
-        LOGI("Play RTMP_Connect or RTMP_ConnectStream error\n");
-        RTMP_Free(pRtmp);
-        return -1;
-    }
-
-    LOGI("RTMP_Connected\n");
-
     m_isOpenPlayer = 1;
-    pthread_create(&thread_play, NULL, &_play, (void*)this);
+    szRTMPUrl = new char[strlen(url) + 2];
+    memset(szRTMPUrl, 0, strlen(url) + 2);
+    strcpy(szRTMPUrl, url);
+    pthread_create(&thread_play, &thread_attr, &_play, (void*)this);
 }
 
 int VideoChat::StopPlay()
@@ -209,11 +203,6 @@ int VideoChat::StopPlay()
     m_isOpenPlayer = 0;
     int iRet = pthread_join(thread_play, NULL);
 
-    if (RTMP_IsConnected(pRtmp)) {
-        RTMP_Close(pRtmp);
-    }
-    RTMP_Free(pRtmp);
-
     return iRet;
 }
 
@@ -221,33 +210,67 @@ void* VideoChat::_play(void* pVideoChat)
 {
     VideoChat* pThis = (VideoChat*)pVideoChat;
 
-    RTMPPacket rtmp_pakt = { 0 };
-    while(pThis->m_isOpenPlayer > 0) {
-        RTMP_ReadPacket(pThis->pRtmp, &rtmp_pakt);
-        if (!rtmp_pakt.m_nBodySize)
-            continue;
+    int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
+    short *audio_buffer = audio_frame_size > 0 ? new short[audio_frame_size] : NULL;
 
-        if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO) {
-            // 处理音频数据包
-            char* data = rtmp_pakt.m_body + 1;
-            int offset = 0;
-            int data_size = rtmp_pakt.m_nBodySize - 1;
-            while(offset < data_size) {
-                // decode data+offset, data_size - offset
-                // play decode ouput_buffer
-                offset += data_size;
-            }
-        } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO) {
-            // 处理视频数据包
-        } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_INFO) {
-            // 处理信息包
-        } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_FLASH_VIDEO) {
-            // 其他Flash数据
+    do {
+        pThis->pRtmp = RTMP_Alloc();
+        RTMP_Init(pThis->pRtmp);
+        LOGI("Play RTMP_Init %s\n", pThis->szRTMPUrl);
+        if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szRTMPUrl)) {
+            LOGI("Play RTMP_SetupURL error\n");
+            break; // error
         }
 
-        LOGI( "rtmp_pakt size:%d  type:%d\n", rtmp_pakt.m_nBodySize, rtmp_pakt.m_packetType);
-        RTMPPacket_Free(&rtmp_pakt);
+        if (!RTMP_Connect(pThis->pRtmp, NULL) || !RTMP_ConnectStream(pThis->pRtmp, 0)) {
+            LOGI("Play RTMP_Connect or RTMP_ConnectStream error\n");
+            break; // error
+        }
+
+        LOGI("RTMP_Connected\n");
+
+        RTMPPacket rtmp_pakt = { 0 };
+        while(pThis->m_isOpenPlayer > 0) {
+
+            RTMP_GetNextMediaPacket(pThis->pRtmp, &rtmp_pakt);
+
+            if (!rtmp_pakt.m_nBodySize)
+                continue;
+
+            LOGI( "RTMP PACKET: size=%d, type=%d\n", rtmp_pakt.m_nBodySize, rtmp_pakt.m_packetType);
+
+            if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO) {
+                // 处理音频数据包
+                char* data = rtmp_pakt.m_body + 1;
+                int offset = 0;
+                int data_size = rtmp_pakt.m_nBodySize - 1;
+                while(offset < data_size) {
+                    // decode data+offset, data_size - offset
+                    pThis->pSpeexCodec->decode(data, data_size, audio_buffer);
+                    // play decode ouput_buffer
+                    pThis->pAudioOutput->play(audio_buffer, audio_frame_size);
+                    offset += data_size;
+                }
+            } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO) {
+                // 处理视频数据包
+            } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_INFO) {
+                // 处理信息包
+            } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_FLASH_VIDEO) {
+                // 其他Flash数据
+            }
+
+            RTMPPacket_Free(&rtmp_pakt);
+        }
+
+    }while(0);
+
+    delete[] audio_buffer;
+
+    if (RTMP_IsConnected(pThis->pRtmp)) {
+        RTMP_Close(pThis->pRtmp);
     }
+    RTMP_Free(pThis->pRtmp);
+    pThis->m_isOpenPlayer = 0;
 
     return 0;
 }

@@ -21,7 +21,7 @@ VideoChat g_videochat;
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jobject jobj)
 {
     LOGI("Java_cn_videochat_VideoChat_Init");
-    g_jObject = (*env)->NewGlobalRef(env, jobj);
+    g_jObject = env->NewGlobalRef(jobj);
     g_videochat.Init();
 }
 
@@ -53,9 +53,9 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePublisher(JNIEnv *env, j
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer(JNIEnv *env, jobject jobj, jstring jRtmpUrl)
 {
     LOGI("Java_cn_videochat_VideoChat_OpenPlayer");
-    const char* rtmpUrl = (*env)->GetStringUTFChars(env, jRtmpUrl, 0);
+    const char* rtmpUrl = env->GetStringUTFChars(jRtmpUrl, NULL);
     g_videochat.Play(rtmpUrl);
-    (*env)->ReleaseStringUTFChars(env, jRtmpUrl, rtmpUrl);
+    env->ReleaseStringUTFChars(jRtmpUrl, rtmpUrl);
 }
 
 /*
@@ -66,7 +66,7 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer(JNIEnv *env, jobje
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer(JNIEnv *env, jobject jobj)
 {
     LOGI("Java_cn_videochat_VideoChat_ClosePlayer");
-    g_videochat.Stop();
+    g_videochat.StopPlay();
 }
 
 /*
@@ -77,6 +77,6 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer(JNIEnv *env, jobj
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jobject jobj)
 {
     LOGI("Java_cn_videochat_VideoChat_Release");
-    (*env)->DeleteGlobalRef(env, g_jObject);
+    env->DeleteGlobalRef(g_jObject);
     g_videochat.Release();
 }
