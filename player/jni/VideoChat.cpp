@@ -136,10 +136,16 @@ SpeexCodec::SpeexCodec()
     speex_bits_init(&dbits);
     dec_state = speex_decoder_init(&speex_wb_mode);
     speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
+    
+    // disable perceptual enhancer
+    //int enh=0;
+    //speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
 }
 
 SpeexCodec::~SpeexCodec()
 {
+    speex_bits_destroy(&dbits);
+    speex_decoder_destroy(dec_state);
 }
 
 int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
@@ -172,7 +178,7 @@ void VideoChat::Release()
 {
 }
 
-int VideoChat::Play(char* szRTMPUrl)
+int VideoChat::Play(const char* szRTMPUrl)
 {
     if (m_isOpenPlayer > 0) return -1;
     pRtmp = RTMP_Alloc();

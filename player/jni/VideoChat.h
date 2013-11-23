@@ -108,7 +108,7 @@ public:
     int Init();
     void Release();
 
-    int Play(char* szRTMPUrl);
+    int Play(const char* szRTMPUrl);
     int StopPlay();
 
 private:
