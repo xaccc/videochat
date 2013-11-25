@@ -18,8 +18,15 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE    := vc
 LOCAL_SRC_FILES := VideoChat.cpp \
-                   VideoChat_jni.cpp
-                   
+                   VideoChat_jni.cpp \
+                   cabac.cpp \
+                   common.cpp \
+                   dsputil.cpp \
+                   golomb.cpp \
+                   h264.cpp \
+                   h264utils.cpp \
+                   mpegvideo.cpp
+
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES :=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
 # for native audio
@@ -32,4 +39,6 @@ LOCAL_LDLIBS    += -landroid
 LOCAL_LDLIBS    += -lspeex -lspeexdsp
 # for rtmpdump
 LOCAL_LDLIBS    += -lrtmp
+# for x264
+#LOCAL_LDLIBS    += -lx264
 include $(BUILD_SHARED_LIBRARY)

@@ -17,6 +17,14 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init
 
 /*
  * Class:     cn_videochat_VideoChat
+ * Method:    SetSurfaceView
+ * Signature: (Landroid/view/SurfaceView;)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_SetSurfaceView
+  (JNIEnv *, jobject, jobject);
+
+/*
+ * Class:     cn_videochat_VideoChat
  * Method:    OpenPublisher
  * Signature: (Ljava/lang/String;)V
  */
