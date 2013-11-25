@@ -10,6 +10,7 @@
 #include "VideoChat_jni.h"
 #include "VideoChat_OnEventCallback_jni.h"
 
+
 jobject g_jObject = NULL;
 VideoChat g_videochat;
 
@@ -24,6 +25,16 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jobject job
     g_jObject = env->NewGlobalRef(jobj);
     g_videochat.Init();
 }
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    SetSurfaceView
+ * Signature: (Landroid/view/SurfaceView;)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_SetSurfaceView(JNIEnv *env, jobject jobj, jobject jsurfaceView)
+{
+}
+
 
 /*
  * Class:     cn_videochat_VideoChat

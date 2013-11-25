@@ -16,6 +16,14 @@
 #include <android/log.h>
 #include <pthread.h>
 
+// for surface view
+#include <android/bitmap.h>
+//#include <android/surface.h>
+//#include <gui/surface.h>
+//#include <ui/Region.h>
+//#include <utils/RefBase.h>
+
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,7 +127,23 @@ private:
 class H264Decodec
 {
 public:
+    H264Decodec();
+    ~H264Decodec();
+
+    int decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_picture);
+    AVFrame* getPicture(void){ return picture; }
+
 private:
+    int decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* got_picture);
+    int decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture);
+    uint8_t* buildDecodeNALUbuffer(uint8_t* buffer, uint32_t buf_size, uint32_t *out_buf_size);
+
+private:
+    uint8_t lengthSizeMinusOne;
+    AVCodecContext *codec_context;
+    AVFrame *picture;
+    uint8_t *dec_buffer;
+    uint32_t dec_buffer_size;
 };
 
 //
@@ -143,6 +167,8 @@ private:
 private:
     SpeexCodec* pSpeexCodec;
     AudioOutput* pAudioOutput;
+    H264Decodec* pH264Decodec;
+
     RTMP* pRtmp;
     int m_isOpenPlayer;
 
@@ -151,7 +177,6 @@ private:
     pthread_t thread_play;
     pthread_attr_t thread_attr;
 
-    AVCodecContext *codec_context;
 };
 
 
