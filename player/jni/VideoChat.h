@@ -28,10 +28,16 @@ extern "C" {
 #include <librtmp/rtmp.h>
 #include <librtmp/log.h>
 
+//#include <libx264/x264.h>
+//#include <libx264/x264_config.h>
 
 #ifdef __cplusplus
 }
 #endif
+
+#include "common.h"
+#include "avcodec.h"
+
 
 
 #define LOG_TAG "VideoChat.NDK"
@@ -98,6 +104,25 @@ private:
 };
 
 //
+//
+//
+class VideoRender
+{
+public:
+private:
+};
+
+
+//
+// video codec
+//
+class H264Decodec
+{
+public:
+private:
+};
+
+//
 // video chat
 //
 class VideoChat
@@ -125,6 +150,8 @@ private:
 
     pthread_t thread_play;
     pthread_attr_t thread_attr;
+
+    AVCodecContext *codec_context;
 };
 
 

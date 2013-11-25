@@ -162,7 +162,7 @@ int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
 ///////////////////////////////////////////////////////////////////////////////
 
 VideoChat::VideoChat()
-    : m_isOpenPlayer(0), szRTMPUrl(NULL)
+    : m_isOpenPlayer(0), szRTMPUrl(NULL), codec_context(NULL)
 {
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
@@ -177,6 +177,9 @@ int VideoChat::Init()
 {
     pSpeexCodec = new SpeexCodec();
     pAudioOutput = new AudioOutput();
+    codec_context = avcodec_alloc_context();
+    avcodec_open(codec_context); 
+
     return 0;
 }
 
@@ -184,6 +187,14 @@ void VideoChat::Release()
 {
     delete pSpeexCodec;
     delete pAudioOutput;
+	if(codec_context)
+	{
+		decode_end(codec_context);
+	    free(codec_context->priv_data);
+
+		free(codec_context);
+		codec_context = NULL;
+	}
 }
 
 int VideoChat::Play(const char* url)
@@ -206,12 +217,28 @@ int VideoChat::StopPlay()
     return iRet;
 }
 
+static void DumpBuffer(uint8_t* buffer, uint size)
+{
+    int offset = 0;
+    int index = 0;
+    while(offset < size) {
+        LOGI("[DumpBuffer](%d - %02d): %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", size, index++,
+            buffer[offset + 0], buffer[offset + 1], buffer[offset + 2], buffer[offset + 3],
+            buffer[offset + 4], buffer[offset + 5], buffer[offset + 6], buffer[offset + 7],
+            buffer[offset + 8], buffer[offset + 9], buffer[offset + 10], buffer[offset + 11],
+            buffer[offset + 12], buffer[offset + 13], buffer[offset + 14], buffer[offset + 15]);
+
+        offset += 16;
+    }
+}
+
 void* VideoChat::_play(void* pVideoChat)
 {
     VideoChat* pThis = (VideoChat*)pVideoChat;
 
     int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
     short *audio_buffer = audio_frame_size > 0 ? new short[audio_frame_size] : NULL;
+    AVFrame *picture = avcodec_alloc_frame();
 
     do {
         pThis->pRtmp = RTMP_Alloc();
@@ -237,10 +264,9 @@ void* VideoChat::_play(void* pVideoChat)
             if (!rtmp_pakt.m_nBodySize)
                 continue;
 
-            LOGI( "RTMP PACKET: size=%d, type=%d\n", rtmp_pakt.m_nBodySize, rtmp_pakt.m_packetType);
-
             if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO) {
                 // 处理音频数据包
+                LOGI( "AudioPacket: Head=0x%X\n", rtmp_pakt.m_body[0]);
                 char* data = rtmp_pakt.m_body + 1;
                 int offset = 0;
                 int data_size = rtmp_pakt.m_nBodySize - 1;
@@ -253,6 +279,47 @@ void* VideoChat::_play(void* pVideoChat)
                 }
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO) {
                 // 处理视频数据包
+	            /* H264 fix: */
+                char *packetBody = rtmp_pakt.m_body;
+                int packetBodySize = rtmp_pakt.m_nBodySize;
+
+	            uint8_t CodecId = packetBody[0] & 0x0f;
+	            if(CodecId == 7) { /* CodecId = H264 */
+
+                    uint8_t frame_type = (packetBody[0] >> 4) & 0x0f;
+                    uint8_t codec_id = packetBody[0] & 0x0f;
+	                uint8_t packet_type = *(packetBody+1);
+	                uint32_t ts = AMF_DecodeInt24(packetBody+2); /* composition time */
+	                int32_t cts = (ts+0xff800000)^0xff800000;
+                    LOGI( "AVC: frame_type=%d, codec_id=%d, packet_type=%d\n", frame_type, codec_id, packet_type);
+
+                    DumpBuffer((uint8_t*)packetBody, packetBodySize);
+
+                    if ((frame_type == 1 || frame_type == 1) /* key/inter frame */
+                        && packet_type == 1 /* 1 - AVC NALU, 0 - sequence header */) {
+                        // decode video data
+                        int got_picture = 0;
+                        int consumed_bytes = 0;
+                    
+                        consumed_bytes = decode_frame(pThis->codec_context, picture, &got_picture, (unsigned char*)packetBody + 5 + 4, packetBodySize - 5 - 4);
+                        LOGI("AVC/DEC: consumed_bytes=%d, got_picture=%d", consumed_bytes, got_picture);
+	                    if(consumed_bytes > 0)
+	                    {
+		                    //DisplayYUV_16((unsigned int*)Pixel, picture->data[0], picture->data[1], picture->data[2], c->width, c->height, picture->linesize[0], picture->linesize[1], iWidth);	
+		                    //for(i=0; i<c->height; i++)
+			                   // fwrite(picture->data[0] + i * picture->linesize[0], 1, c->width, outf);
+
+		                    //for(i=0; i<c->height/2; i++)
+			                   // fwrite(picture->data[1] + i * picture->linesize[1], 1, c->width/2, outf);
+
+		                    //for(i=0; i<c->height/2; i++)
+			                   // fwrite(picture->data[2] + i * picture->linesize[2], 1, c->width/2, outf);
+	                    }
+                    }
+                } else {
+                    LOGI( "AVC: CodecId != 7" );
+                }
+
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_INFO) {
                 // 处理信息包
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_FLASH_VIDEO) {
@@ -263,6 +330,11 @@ void* VideoChat::_play(void* pVideoChat)
         }
 
     }while(0);
+
+	if(picture) {
+		free(picture);
+		picture = NULL;
+	}
 
     delete[] audio_buffer;
 
