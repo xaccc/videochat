@@ -60,7 +60,9 @@ package {
 
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            api.publishUrl(uid);
+            if (remote_host == "183.203.16.207") {
+                api.publishUrl(uid);
+            }
         }
         
         public function apiCallback(funcName:String, response:Object):void {
@@ -179,8 +181,8 @@ package {
             mic.rate = 11;
             mic.setSilenceLevel(0, 15000);
             mic.framesPerPacket = 1;
-            mic.setUseEchoSuppression(true);
-            mic.enableVAD = false;
+            mic.setUseEchoSuppression(false);
+            mic.enableVAD = true;
         }
         
         private function setVideo():void {

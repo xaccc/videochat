@@ -52,7 +52,9 @@ package
             
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            api.liveUrl(uid);
+            if (remote_host == "183.203.16.207") {
+                api.liveUrl(uid);
+            }
         }
         
         public function apiCallback(funcName:String, response:Object):void {
