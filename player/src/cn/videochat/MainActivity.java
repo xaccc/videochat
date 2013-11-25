@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
 		btnListen.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				vc.OpenPlayer(txtRTMPUrl.getText().toString());
+				vc.OpenPlayer(txtRTMPUrl.getText().toString() + " live=1");
 			}
 		});
 

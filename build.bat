@@ -8,7 +8,7 @@ IF /i "%DEBUG%"=="-debug" (SET OUTDIR=bin-debug)
 REM compc %DEBUG% -source-path=src -output "%OUTDIR%\SelectDevice.swc" "SelectDevice"
 
 mxmlc %DEBUG% -output "%OUTDIR%\Producer.swf" "src\Producer.as" --library-path+="%OUTDIR%\SelectDevice.swc" 
-mxmlc %DEBUG% -load-config %FLEX_SDK%\frameworks\airmobile-config.xml -mobile -output "%OUTDIR%\Consumer.swf" "src\Consumer.as"
+mxmlc %DEBUG% -output "%OUTDIR%\Consumer.swf" "src\Consumer.as"
 
 mkdir C:\AppServ\www\videochat
 

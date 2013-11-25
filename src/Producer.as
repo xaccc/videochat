@@ -179,8 +179,8 @@ package {
             mic.rate = 11;
             mic.setSilenceLevel(0, 15000);
             mic.framesPerPacket = 1;
-            mic.setUseEchoSuppression(false);
-            // mic.enableVAD = false;
+            mic.setUseEchoSuppression(true);
+            mic.enableVAD = false;
         }
         
         private function setVideo():void {
