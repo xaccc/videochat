@@ -1,6 +1,8 @@
 #if !defined(__VIDEOCHAT_H__)
 #define __VIDEOCHAT_H__
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 
@@ -19,9 +21,12 @@
 // for surface view
 #include <android/bitmap.h>
 //#include <android/surface.h>
-//#include <gui/surface.h>
+//#include <gui/Surface.h>
 //#include <ui/Region.h>
 //#include <utils/RefBase.h>
+
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 
 
@@ -39,14 +44,18 @@ extern "C" {
 //#include <libx264/x264.h>
 //#include <libx264/x264_config.h>
 
+#ifndef   UINT64_C
+#define   UINT64_C(value) __CONCAT(value,ULL)
+#endif
+
+#include "libavcodec/avcodec.h"
+
 #ifdef __cplusplus
 }
 #endif
 
-#include "common.h"
-#include "avcodec.h"
 
-
+//#define DEBUG
 
 #define LOG_TAG "VideoChat.NDK"
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
@@ -58,6 +67,34 @@ extern "C" {
 class AudioOutput;
 class SpeexCodec;
 class VideoChat;
+
+
+//
+// Thead utils
+//
+class Mutex
+{
+public:
+    Mutex()     { pthread_mutex_init( &_mutex, NULL ); }
+    ~Mutex()    { pthread_mutex_destroy( &_mutex );    }
+
+    void Lock() const   { pthread_mutex_lock( &_mutex );       }
+    void Unlock() const { pthread_mutex_unlock( &_mutex );     }
+
+private:
+    mutable pthread_mutex_t _mutex;
+};
+class AutoLock
+{
+public:
+    AutoLock(Mutex& mutex) : _clsMutex(mutex) { _clsMutex.Lock();   }
+    ~AutoLock()                               { _clsMutex.Unlock(); }
+
+    Mutex& _clsMutex;
+};
+
+
+
 
 //
 // audio play
@@ -117,7 +154,40 @@ private:
 class VideoRender
 {
 public:
+    VideoRender();
+    ~VideoRender();
+
+    void set_view(int width, int height) { m_viewport_width = width; m_viewport_height = height; }
+    void set_size(uint32_t width, uint32_t height) {m_width = width; m_height = height;}
+    void set_frame(AVFrame* frame, Mutex* frame_lock) { m_frame = frame; m_frame_lock = frame_lock; };
+    void render_frame();
+    //int setSurface(JNIEnv *env, jobject jsurface, jint version);
+    //android::Surface* getNativeSurface(JNIEnv* env, jobject jsurface, jint version);
+
 private:
+    enum {
+        ATTRIB_VERTEX,
+        ATTRIB_TEXTURE,
+    };
+
+    GLuint bindTexture(GLuint texture, const char *buffer, GLuint w , GLuint h);
+    GLuint buildShader(const char* source, GLenum shaderType);
+    GLuint buildProgram(const char* vertexShaderSource, const char* fragmentShaderSource);
+
+private:
+    GLuint m_texYId;
+    GLuint m_texUId;
+    GLuint m_texVId;
+    GLuint simpleProgram;
+
+    AVFrame* m_frame;
+    Mutex*   m_frame_lock;
+
+    uint32_t m_width;
+    uint32_t m_height;
+
+    int m_viewport_width;
+    int m_viewport_height;
 };
 
 
@@ -132,18 +202,32 @@ public:
 
     int decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_picture);
     AVFrame* getPicture(void){ return picture; }
+    Mutex& getPictureLock(void){return _picture_lock;};
+
+    uint32_t getWidth() { return codec_context->width; }
+    uint32_t getHeight() { return codec_context->height; }
 
 private:
     int decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* got_picture);
     int decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture);
-    uint8_t* buildDecodeNALUbuffer(uint8_t* buffer, uint32_t buf_size, uint32_t *out_buf_size);
+    
+    int final_decode(uint8_t* buffer, uint32_t buf_size, int* got_picture);
+    int final_decode_header(uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength, 
+                            uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, int* got_picture);
 
 private:
     uint8_t lengthSizeMinusOne;
     AVCodecContext *codec_context;
+    AVCodec *_codec;
     AVFrame *picture;
     uint8_t *dec_buffer;
     uint32_t dec_buffer_size;
+
+    Mutex _picture_lock;
+
+#ifdef DEBUG
+    FILE* decoder_fd;
+#endif
 };
 
 //
@@ -157,17 +241,20 @@ public:
 
     int Init();
     void Release();
+    void InitRender(int width, int height);
+    void RenderFrame() { if (pVideoRender) pVideoRender->render_frame(); }
 
     int Play(const char* szRTMPUrl);
     int StopPlay();
 
 private:
     static void* _play(void* pVideoChat);
-
+    
 private:
     SpeexCodec* pSpeexCodec;
     AudioOutput* pAudioOutput;
     H264Decodec* pH264Decodec;
+    VideoRender* pVideoRender;
 
     RTMP* pRtmp;
     int m_isOpenPlayer;
@@ -176,7 +263,6 @@ private:
 
     pthread_t thread_play;
     pthread_attr_t thread_attr;
-
 };
 
 

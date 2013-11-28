@@ -21,6 +21,41 @@
 #define NALU_TYPE_EOSTREAM  11
 #define NALU_TYPE_FILL      12
 
+//
+//Shader.frag文件内容
+//
+static const char* FRAG_SHADER =
+    "varying lowp vec2 tc;                          \n"
+    "uniform sampler2D SamplerY;                    \n"
+    "uniform sampler2D SamplerU;                    \n"
+    "uniform sampler2D SamplerV;                    \n"
+    "void main(void)                                \n"
+    "{                                              \n"
+        "mediump vec3 yuv;                          \n"
+        "lowp vec3 rgb;                             \n"
+        "yuv.x = texture2D(SamplerY, tc).r;         \n"
+        "yuv.y = texture2D(SamplerU, tc).r - 0.5;   \n"
+        "yuv.z = texture2D(SamplerV, tc).r - 0.5;   \n"
+        "rgb = mat3( 1, 1, 1,                       \n"
+                    "0, -0.39465, 2.03211,          \n"
+                    "1.13983, -0.58060, 0) * yuv;   \n"
+        "gl_FragColor = vec4(rgb, 1);               \n"
+    "}                                              \n";
+
+//
+// Shader.vert文件内容
+//
+static const char* VERTEX_SHADER =
+      "attribute vec4 vPosition;    \n"
+      "attribute vec2 a_texCoord;	\n"
+      "varying vec2 tc;             \n"
+      "void main()                  \n"
+      "{                            \n"
+      "   gl_Position = vPosition;  \n"
+      "	  tc = a_texCoord;	        \n"
+      "}                            \n";
+
+
 static const char* get_nalu_type_name(uint8_t t) {
     switch(t&0x1f) {
     case NALU_TYPE_SLICE   :   return "SLICE   ";  break;
@@ -52,6 +87,15 @@ static void DumpBuffer(uint8_t* buffer, uint size)
             buffer[offset + 12], buffer[offset + 13], buffer[offset + 14], buffer[offset + 15]);
 
         offset += 16;
+    }
+}
+
+static void checkGlError(const char* op)
+{
+    GLint error;
+    for (error = glGetError(); error; error = glGetError())
+    {
+        LOGI("[OpenGL ERROR]::after %s() glError (0x%x)\n", op, error);
     }
 }
 
@@ -202,35 +246,273 @@ int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
 }
 
 
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// class VideoRender 实现
+//
+///////////////////////////////////////////////////////////////////////////////
+VideoRender::VideoRender()
+    : m_width(0), m_height(0), m_viewport_width(0), m_viewport_height(0)
+{
+    simpleProgram = buildProgram(VERTEX_SHADER, FRAG_SHADER);
+    glUseProgram(simpleProgram);
+    glGenTextures(1, &m_texYId);
+    glGenTextures(1, &m_texUId);
+    glGenTextures(1, &m_texVId);
+}
+
+VideoRender::~VideoRender()
+{
+}
+
+GLuint VideoRender::bindTexture(GLuint texture, const char *buffer, GLuint w , GLuint h)
+{
+//  GLuint texture;
+//  glGenTextures ( 1, &texture );
+    checkGlError("glGenTextures");
+    glBindTexture ( GL_TEXTURE_2D, texture );
+    checkGlError("glBindTexture");
+    glTexImage2D ( GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer);
+    checkGlError("glTexImage2D");
+    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+    checkGlError("glTexParameteri");
+    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    checkGlError("glTexParameteri");
+    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+    checkGlError("glTexParameteri");
+    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+    checkGlError("glTexParameteri");
+    //glBindTexture(GL_TEXTURE_2D, 0);
+
+    return texture;
+}
+
+GLuint VideoRender::buildShader(const char* source, GLenum shaderType)
+{
+    GLuint shaderHandle = glCreateShader(shaderType);
+
+    if (shaderHandle)
+    {
+        glShaderSource(shaderHandle, 1, &source, 0);
+        glCompileShader(shaderHandle);
+
+        GLint compiled = 0;
+        glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &compiled);
+        if (!compiled)
+        {
+            GLint infoLen = 0;
+            glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH, &infoLen);
+            if (infoLen)
+            {
+                char* buf = (char*) malloc(infoLen);
+                if (buf)
+                {
+                    glGetShaderInfoLog(shaderHandle, infoLen, NULL, buf);
+                    LOGI("[OpenGL ERROR]::Could not compile shader %d:\n%s\n", shaderType, buf);
+                    free(buf);
+                }
+                glDeleteShader(shaderHandle);
+                shaderHandle = 0;
+            }
+        }else{
+            LOGI("[VideoRender::buildShader] shader compiled!\n");
+        }
+    }
+
+    return shaderHandle;
+}
+
+GLuint VideoRender::buildProgram(const char* vertexShaderSource, const char* fragmentShaderSource)
+{
+    GLuint vertexShader = buildShader(vertexShaderSource, GL_VERTEX_SHADER);
+    GLuint fragmentShader = buildShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
+    GLuint programHandle = glCreateProgram();
+
+    if (programHandle)
+    {
+        glAttachShader(programHandle, vertexShader);
+        checkGlError("glAttachShader");
+        glAttachShader(programHandle, fragmentShader);
+        checkGlError("glAttachShader");
+        glLinkProgram(programHandle);
+
+        GLint linkStatus = GL_FALSE;
+        glGetProgramiv(programHandle, GL_LINK_STATUS, &linkStatus);
+        if (linkStatus != GL_TRUE) {
+            GLint bufLength = 0;
+            glGetProgramiv(programHandle, GL_INFO_LOG_LENGTH, &bufLength);
+            if (bufLength) {
+                char* buf = (char*) malloc(bufLength);
+                if (buf) {
+                    glGetProgramInfoLog(programHandle, bufLength, NULL, buf);
+                    LOGI("[OpenGL ERROR]::Could not link program:\n%s\n", buf);
+                    free(buf);
+                }
+            }
+            glDeleteProgram(programHandle);
+            programHandle = 0;
+        }else{
+            LOGI("[VideoRender::buildProgram] program linked!\n");
+        }
+    }
+
+    return programHandle;
+}
+
+#if 1
+// Galaxy Nexus 4.2.2
+static GLfloat gl_squareVertices[] = {
+    -1.0f, -1.0f, 1.0f, -1.0f,
+    -1.0f,  1.0f, 1.0f,  1.0f
+};
+
+static GLfloat gl_coordVertices[] = {
+    0.0f, 1.0f, 1.0f, 1.0f,
+    0.0f, 0.0f, 1.0f, 0.0f
+};
+#else
+// HUAWEIG510-0010 4.1.1
+static GLfloat gl_squareVertices[] = {
+    0.0f, 0.0f, 1.0f, 0.0f,
+    0.0f, 1.0f, 1.0f, 1.0f,
+};
+
+static GLfloat gl_coordVertices[] = {
+    -1.0f,  1.0f, 1.0f,  1.0f,
+    -1.0f, -1.0f, 1.0f, -1.0f,
+};
+#endif
+
+void VideoRender::render_frame()
+{
+    // render
+    AutoLock lock_frame(*m_frame_lock);
+
+    uint32_t& width = m_width;
+    uint32_t& height = m_height;
+    LOGI("[VideoRender::render_frame] size=%dx%d, viewport=%dx%d", width, height, m_viewport_width, m_viewport_height);
+    if (width == 0 || height == 0)
+        return;
+
+    glViewport(0, 0, m_viewport_width, m_viewport_height);
+    bindTexture(m_texYId, (const char*)m_frame->data[0], width, height);
+    bindTexture(m_texUId, (const char*)m_frame->data[1], width/2, height/2);
+    bindTexture(m_texVId, (const char*)m_frame->data[2], width/2, height/2);
+
+
+
+    // clear background
+    glClearColor(0.5f, 0.5f, 0.5f, 1);
+    checkGlError("glClearColor");
+    glClear(GL_COLOR_BUFFER_BIT);
+    checkGlError("glClear");
+
+
+    //PRINTF("setsampler %d %d %d", g_texYId, g_texUId, g_texVId);
+    GLint tex_y = glGetUniformLocation(simpleProgram, "SamplerY");
+    checkGlError("glGetUniformLocation");
+    GLint tex_u = glGetUniformLocation(simpleProgram, "SamplerU");
+    checkGlError("glGetUniformLocation");
+    GLint tex_v = glGetUniformLocation(simpleProgram, "SamplerV");
+    checkGlError("glGetUniformLocation");
+
+
+    glBindAttribLocation(simpleProgram, ATTRIB_VERTEX, "vPosition");
+    checkGlError("glBindAttribLocation");
+    glBindAttribLocation(simpleProgram, ATTRIB_TEXTURE, "a_texCoord");
+    checkGlError("glBindAttribLocation");
+
+    glVertexAttribPointer(ATTRIB_VERTEX, 2, GL_FLOAT, 0, 0, gl_squareVertices);
+    checkGlError("glVertexAttribPointer");
+    glEnableVertexAttribArray(ATTRIB_VERTEX);
+    checkGlError("glEnableVertexAttribArray");
+
+    glVertexAttribPointer(ATTRIB_TEXTURE, 2, GL_FLOAT, 0, 0, gl_coordVertices);
+    checkGlError("glVertexAttribPointer");
+    glEnableVertexAttribArray(ATTRIB_TEXTURE);
+    checkGlError("glEnableVertexAttribArray");
+
+    glActiveTexture(GL_TEXTURE0);
+    checkGlError("glActiveTexture");
+    glBindTexture(GL_TEXTURE_2D, m_texYId);
+    checkGlError("glBindTexture");
+    glUniform1i(tex_y, 0);
+    checkGlError("glUniform1i");
+
+    glActiveTexture(GL_TEXTURE1);
+    checkGlError("glActiveTexture");
+    glBindTexture(GL_TEXTURE_2D, m_texUId);
+    checkGlError("glBindTexture");
+    glUniform1i(tex_u, 1);
+    checkGlError("glUniform1i");
+
+    glActiveTexture(GL_TEXTURE2);
+    checkGlError("glActiveTexture");
+    glBindTexture(GL_TEXTURE_2D, m_texVId);
+    checkGlError("glBindTexture");
+    glUniform1i(tex_v, 2);
+    checkGlError("glUniform1i");
+
+    //glEnable(GL_TEXTURE_2D);
+    //checkGlError("glEnable");
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    checkGlError("glDrawArrays");
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class H264Decodec 实现
 //
 ///////////////////////////////////////////////////////////////////////////////
+static void log_callback(void* ptr, int level,const char* fmt,va_list vl)  
+{      
+   LOGI(fmt, vl);
+}
+
 H264Decodec::H264Decodec()
     : lengthSizeMinusOne(0), dec_buffer(NULL), dec_buffer_size(0)
 {
-    codec_context = avcodec_alloc_context();
-    avcodec_open(codec_context); 
+    av_log_set_callback(log_callback);
+    avcodec_register_all();
+
+    _codec = avcodec_find_decoder(CODEC_ID_H264);
+    codec_context = avcodec_alloc_context3(_codec);
+    avcodec_open2(codec_context, _codec, NULL);
+
     picture = avcodec_alloc_frame();
+
+
+    // output debug data
+#ifdef DEBUG
+    decoder_fd = fopen("/sdcard/video_data.264", "wb");
+
+    if (!decoder_fd) {
+        LOGI("ERROR: create debug decode video file failed!!!");
+    }
+#endif
 }
 
 H264Decodec::~H264Decodec()
 {
-	if(codec_context)
-	{
-		decode_end(codec_context);
-	    free(codec_context->priv_data);
+#ifdef DEBUG
+    if (decoder_fd)
+        fclose(decoder_fd);
+#endif
 
-		free(codec_context);
-		codec_context = NULL;
-	}
-
-	if(picture)
+    if(codec_context)
     {
-		free(picture);
-		picture = NULL;
-	}
+        avcodec_close(codec_context);
+        codec_context = NULL;
+    }
+
+    if(picture)
+    {
+        av_frame_free(&picture);
+        picture = NULL;
+    }
 
     if (dec_buffer) {
         delete[] dec_buffer;
@@ -249,6 +531,7 @@ int H264Decodec::decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_pic
     LOGI( "AVC/DEC: frame_type=%d, codec_id=%d, packet_type=%d, packet_size=%d\n", frame_type, codec_id, packet_type, buf_size);
     //DumpBuffer(rtmp_video_buf, buf_size);
 
+    AutoLock lock_frame(_picture_lock);
     if (packet_type == 0) /* Sequence header */
     {
         return decodeSequenceHeader(rtmp_video_buf + 5, buf_size - 5, got_picture);
@@ -280,25 +563,29 @@ int H264Decodec::decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* g
     lengthSizeMinusOne = (buffer[consumed_bytes] & 0x03) + 1; consumed_bytes++;
     LOGI("[H264Decodec::decodeSequenceHeader] lengthSizeMinusOne=%d\n", lengthSizeMinusOne);
 
+    // trac SPS PPS
+    uint32_t sequenceParameterSetLength = NULL;
+    uint8_t* sequenceParameterSet       = NULL;
+    uint32_t pictureParameterSetLength  = NULL;
+    uint8_t* pictureParameterSet        = NULL;
+
     uint32_t numOfSequenceParameterSets = buffer[consumed_bytes] & 0x1F; consumed_bytes++;
     for(int i = 0; i<numOfSequenceParameterSets; i++) {
-        uint32_t sequenceParameterSetLength = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
-        uint8_t* sequenceParameterSet       = buffer+consumed_bytes; consumed_bytes += sequenceParameterSetLength;
-    
+        sequenceParameterSetLength = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
+        sequenceParameterSet       = buffer+consumed_bytes; consumed_bytes += sequenceParameterSetLength;
         LOGI("[H264Decodec::decodeSequenceHeader] SPS Length=%d, NALU-Type: %s\n", sequenceParameterSetLength, get_nalu_type_name(sequenceParameterSet[0]));
-        decode_frame(codec_context, picture, got_picture, 
-            (unsigned char*)buildDecodeNALUbuffer(sequenceParameterSet, sequenceParameterSetLength, &out_size), out_size);
     }
 
     uint32_t numOfPictureParameterSets  = buffer[consumed_bytes] & 0x1F; consumed_bytes++;
     for(int i = 0; i < numOfPictureParameterSets; i++) {
-        uint32_t pictureParameterSetLength  = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
-        uint8_t* pictureParameterSet        = buffer+consumed_bytes; consumed_bytes += pictureParameterSetLength;
-    
+        pictureParameterSetLength  = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
+        pictureParameterSet        = buffer+consumed_bytes; consumed_bytes += pictureParameterSetLength;
         LOGI("[H264Decodec::decodeSequenceHeader] PPS Length=%d, NALU-Type: %s\n", pictureParameterSetLength, get_nalu_type_name(pictureParameterSet[0]));
-        decode_frame(codec_context, picture, got_picture, 
-            (unsigned char*)buildDecodeNALUbuffer(pictureParameterSet, pictureParameterSetLength, &out_size), out_size);
     }
+    
+    final_decode_header(
+        sequenceParameterSet, sequenceParameterSetLength, 
+        pictureParameterSet, pictureParameterSetLength, got_picture);
 }
 
 int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture)
@@ -319,33 +606,72 @@ int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture
 
         //LOGI("[H264Decodec::decodeNALU] NALU-Length = %d, NALU-Type: (%d) %s\n", nalu_size, buffer[consumed_bytes]&0x1f, get_nalu_type_name(buffer[consumed_bytes]));
 
-        uint32_t out_size = 0;
-        decode_frame(codec_context, picture, got_picture, 
-            (unsigned char*)buildDecodeNALUbuffer(buffer + consumed_bytes, nalu_size, &out_size), out_size);
+        final_decode(buffer + consumed_bytes, nalu_size, got_picture);
 
         if (*got_picture > 0) {
-            //LOGI("[H264Decodec::decodeNALU] got-picture!");
             LOGI("[H264Decodec::decodeNALU] got-picture: true, picture-size: %dx%d", codec_context->width, codec_context->height);
         }
         consumed_bytes += nalu_size;
     }
 }
 
-uint8_t* H264Decodec::buildDecodeNALUbuffer(uint8_t* buffer, uint32_t buf_size, uint32_t *out_buf_size) {
-    *out_buf_size = buf_size + 3;
+int H264Decodec::final_decode_header(
+    uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength, 
+    uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, int* got_picture) {
 
-    if (*out_buf_size > dec_buffer_size) {
+    AVPacket packet = {0};
+    int final_size = sequenceParameterSetLength + pictureParameterSetLength + 8;
+
+    while (final_size > dec_buffer_size) {
         dec_buffer_size += 1024*10; // up 10k
         delete[] dec_buffer;
         dec_buffer = new uint8_t[dec_buffer_size];
     }
 
-    dec_buffer[0] = 0x00;
-    dec_buffer[1] = 0x00;
-    dec_buffer[2] = 0x01;
-    memcpy(dec_buffer + 3, buffer, buf_size);
+    dec_buffer[0] = 0; dec_buffer[sequenceParameterSetLength + 4 + 0] = 0; 
+    dec_buffer[1] = 0; dec_buffer[sequenceParameterSetLength + 4 + 1] = 0;
+    dec_buffer[2] = 0; dec_buffer[sequenceParameterSetLength + 4 + 2] = 0;
+    dec_buffer[3] = 1; dec_buffer[sequenceParameterSetLength + 4 + 3] = 1;
+    memcpy(dec_buffer + 4, sequenceParameterSet, sequenceParameterSetLength);
+    memcpy(dec_buffer + sequenceParameterSetLength + 8, pictureParameterSet, pictureParameterSetLength);
 
-    return dec_buffer;
+#ifdef DEBUG
+    fwrite(dec_buffer, 1, final_size, decoder_fd);
+    fflush(decoder_fd);
+#endif
+
+    av_init_packet(&packet);
+    av_packet_from_data(&packet, dec_buffer, final_size);
+
+    return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
+}
+
+int H264Decodec::final_decode(uint8_t* buffer, uint32_t buf_size, int* got_picture) {
+
+    AVPacket packet = {0};
+    int final_size = buf_size + 4;
+
+    while (final_size > dec_buffer_size) {
+        dec_buffer_size += 1024*10; // up 10k
+        delete[] dec_buffer;
+        dec_buffer = new uint8_t[dec_buffer_size];
+    }
+
+    dec_buffer[0] = 0;
+    dec_buffer[1] = 0;
+    dec_buffer[2] = 0;
+    dec_buffer[3] = 1;
+    memcpy(dec_buffer + 4, buffer, buf_size);
+
+#ifdef DEBUG
+    fwrite(dec_buffer, 1, final_size, decoder_fd);
+    fflush(decoder_fd);
+#endif
+
+    av_init_packet(&packet);
+    av_packet_from_data(&packet, dec_buffer, final_size);
+
+    return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -355,7 +681,7 @@ uint8_t* H264Decodec::buildDecodeNALUbuffer(uint8_t* buffer, uint32_t buf_size, 
 ///////////////////////////////////////////////////////////////////////////////
 
 VideoChat::VideoChat()
-    : m_isOpenPlayer(0), szRTMPUrl(NULL), pSpeexCodec(NULL), pAudioOutput(NULL), pH264Decodec(NULL)
+    : m_isOpenPlayer(0), szRTMPUrl(NULL), pSpeexCodec(NULL), pAudioOutput(NULL), pH264Decodec(NULL), pVideoRender(NULL)
 {
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
@@ -364,6 +690,16 @@ VideoChat::VideoChat()
 VideoChat::~VideoChat()
 {
     if (szRTMPUrl) delete[] szRTMPUrl;
+}
+
+void VideoChat::InitRender(int width, int height)
+{
+    if (pVideoRender)
+        delete pVideoRender;
+
+    pVideoRender = new VideoRender();
+    pVideoRender->set_view(width, height);
+    pVideoRender->set_frame(pH264Decodec->getPicture(), &pH264Decodec->getPictureLock());
 }
 
 int VideoChat::Init()
@@ -381,6 +717,8 @@ void VideoChat::Release()
     delete pAudioOutput;
     delete pH264Decodec;
 
+    if (pVideoRender)
+        delete pVideoRender;
 }
 
 int VideoChat::Play(const char* url)
@@ -409,6 +747,14 @@ void* VideoChat::_play(void* pVideoChat)
 
     int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
     short *audio_buffer = audio_frame_size > 0 ? new short[audio_frame_size] : NULL;
+
+    //int result_code = mkdir("/data/data/cn.videochat.MainActivity/files/", 0770);
+#ifdef DEBUG
+    FILE* fd = fopen("/sdcard/video_data.yuv", "wb");
+    if (!fd) {
+        LOGI("ERROR: create debug decode video file failed!!!");
+    }
+#endif
 
     do {
         pThis->pRtmp = RTMP_Alloc();
@@ -449,21 +795,38 @@ void* VideoChat::_play(void* pVideoChat)
                 }
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO) {
                 // 处理视频数据包
-	            /* H264 fix: */
+                /* H264 fix: */
                 char *packetBody = rtmp_pakt.m_body;
                 int packetBodySize = rtmp_pakt.m_nBodySize;
 
-	            uint8_t CodecId = packetBody[0] & 0x0f;
-	            if(CodecId == 7) { /* CodecId = H264 */
+                uint8_t CodecId = packetBody[0] & 0x0f;
+                if(CodecId == 7) { /* CodecId = H264 */
                     int got_picture = 0;
                     pThis->pH264Decodec->decode((uint8_t*)packetBody, packetBodySize, &got_picture);
-                    if (got_picture) 
+
+                    if (got_picture && pThis->pVideoRender) 
                     {
-                        // show picture
-                        // pThis->pH264Decodec->getPicture();
-                		//DisplayYUV_16((unsigned int*)Pixel, picture->data[0], picture->data[1], picture->data[2], 
-                        //              c->width, c->height, picture->linesize[0], picture->linesize[1], iWidth);	
+                        pThis->pVideoRender->set_size(
+                            pThis->pH264Decodec->getWidth(),
+                            pThis->pH264Decodec->getHeight());
                     }
+
+#ifdef DEBUG
+                    // debug data
+                    if (got_picture && fd) {
+                        AVFrame *frame = pThis->pH264Decodec->getPicture();
+                        uint32_t width = pThis->pH264Decodec->getWidth();
+                        uint32_t height = pThis->pH264Decodec->getHeight();
+
+                        fwrite(frame->data[0], 1, width * height, fd);
+                        fwrite(frame->data[1], 1, width * height / 4, fd);
+                        fwrite(frame->data[2], 1, width * height / 4, fd);
+
+                        fflush(fd);
+                    } else if (!fd){
+                        LOGI("ERROR: don't open video log file!!!");
+                    }
+#endif // DEBUG
                 } else {
                     LOGI( "AVC: CodecId != 7" );
                 }
@@ -479,6 +842,10 @@ void* VideoChat::_play(void* pVideoChat)
 
     }while(0);
 
+#ifdef DEBUG
+    if (fd) fclose(fd);
+#endif
+
     delete[] audio_buffer;
 
     if (RTMP_IsConnected(pThis->pRtmp)) {
@@ -489,6 +856,3 @@ void* VideoChat::_play(void* pVideoChat)
 
     return 0;
 }
-
-
-
