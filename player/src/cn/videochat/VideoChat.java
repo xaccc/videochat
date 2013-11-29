@@ -7,8 +7,6 @@
  */
 package cn.videochat;
 
-import android.view.SurfaceView;
-
 public class VideoChat {
 
 	public interface OnEventCallback {
@@ -20,12 +18,15 @@ public class VideoChat {
 	}
 
 	public native void Init();
-	public native void SetSurfaceView(SurfaceView view);
+	public native void Release();
+
 	public native void OpenPublisher(String rtmpUrl);
 	public native void ClosePublisher();
 	public native void OpenPlayer(String rtmpUrl);
 	public native void ClosePlayer();
-	public native void Release();
+	
+	public native void InitRender(int width, int height);
+	public native void RenderFrame();
 
 	public OnEventCallback m_onEventCallback;
 

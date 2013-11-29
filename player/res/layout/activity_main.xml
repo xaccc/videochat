@@ -9,18 +9,19 @@
         android:id="@+id/editText1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:ems="10"
+        android:layout_marginTop="380px"
         android:inputType="text"
         android:text="@string/rtmp_url" >
-
-        <requestFocus />
     </EditText>
 
     <Button
         android:id="@+id/button1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="70dp"
-        android:text="@string/listen" />
+        android:text="@string/listen" >
+        <requestFocus />
+    </Button>
 
     <Button
         android:id="@+id/button2"
@@ -28,10 +29,10 @@
         android:layout_height="wrap_content"
         android:text="@string/stop" />
 
-    <SurfaceView
-        android:id="@+id/surfaceView1"
+    <TableRow
+        android:id="@+id/tableRow1"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="0.54" />
+        android:layout_height="wrap_content" >
+    </TableRow>
 
 </TableLayout>

@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -13,6 +14,8 @@ public class MainActivity extends Activity {
 	VideoChat vc;
 	Button btnListen, btnStop;
 	EditText txtRTMPUrl;
+	NativeView mView;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -27,7 +30,10 @@ public class MainActivity extends Activity {
 			public void onEvent(int event) {
 			}
 		});
-		
+
+		mView = new NativeView(getApplication(), vc);
+		this.addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT,360));
+
 		btnListen = (Button) findViewById(R.id.button1);
 		btnListen.setOnClickListener(new OnClickListener() {
 			@Override

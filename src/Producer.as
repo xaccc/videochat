@@ -168,8 +168,8 @@ package {
             cam = Camera.getCamera();
             Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            cam.setMode(320,240,24);
-            cam.setQuality(0,95);
+            cam.setMode(320,240,25);
+            cam.setQuality(0,85);
         }
         
         private function setMic():void {
