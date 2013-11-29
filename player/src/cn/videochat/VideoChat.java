@@ -21,8 +21,11 @@ public class VideoChat {
 	public native void Release();
 
 	public native void OpenPublisher(String rtmpUrl);
+	public native void PausePublisher(boolean paused);
 	public native void ClosePublisher();
+	
 	public native void OpenPlayer(String rtmpUrl);
+	public native void PausePlayer(boolean paused);
 	public native void ClosePlayer();
 	
 	public native void InitRender(int width, int height);
@@ -31,7 +34,6 @@ public class VideoChat {
 	public OnEventCallback m_onEventCallback;
 
 	private void onEventCallback(int event) {
-		System.out.println("onEventCallback: " + event);
 		if (m_onEventCallback != null) {
 			m_onEventCallback.onEvent(event);
 		}
