@@ -28,16 +28,6 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jobject job
 
 /*
  * Class:     cn_videochat_VideoChat
- * Method:    SetSurfaceView
- * Signature: (Landroid/view/SurfaceView;)V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_SetSurfaceView(JNIEnv *env, jobject jobj, jobject jsurfaceView)
-{
-}
-
-
-/*
- * Class:     cn_videochat_VideoChat
  * Method:    OpenPublisher
  * Signature: (Ljava/lang/String{})V
  */
@@ -91,3 +81,28 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jobject 
     env->DeleteGlobalRef(g_jObject);
     g_videochat.Release();
 }
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    InitRender
+ * Signature: (II)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_InitRender(JNIEnv *, jobject, jint jWidth, jint jHeight)
+{
+    LOGI("Java_cn_videochat_VideoChat_InitRender");
+    g_videochat.InitRender(jWidth,jHeight);
+}
+
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    RenderFrame
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *, jobject)
+{
+    LOGI("Java_cn_videochat_VideoChat_RenderFrame");
+    g_videochat.RenderFrame();
+}
+
+
