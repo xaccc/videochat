@@ -2,6 +2,11 @@ package cn.videochat;
 
 import cn.videochat.VideoChat.OnEventCallback;
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
+import android.content.Context;
+import android.content.pm.ConfigurationInfo;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
@@ -15,41 +20,59 @@ public class MainActivity extends Activity {
 	Button btnListen, btnStop;
 	EditText txtRTMPUrl;
 	NativeView mView;
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		
+
 		setContentView(R.layout.activity_main);
-		txtRTMPUrl = (EditText)findViewById(R.id.editText1);
-		
-		vc = new VideoChat();
-		vc.Init();
-		vc.setOnEventCallback(new OnEventCallback() {
-			@Override
-			public void onEvent(int event) {
-			}
-		});
+		txtRTMPUrl = (EditText) findViewById(R.id.editText1);
 
-		mView = new NativeView(getApplication(), vc);
-		this.addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT,360));
+		if (IsSupportOpenGLSE2()) {
+			// 创建对象
+			vc = new VideoChat();
+			vc.Init();
+			vc.setOnEventCallback(new OnEventCallback() {
+				@Override
+				public void onEvent(int event) {
+					// 事件回调(保留)
+				}
+			});
 
-		btnListen = (Button) findViewById(R.id.button1);
-		btnListen.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				vc.OpenPlayer(txtRTMPUrl.getText().toString() + " live=1");
-			}
-		});
+			// 创建视频窗口
+			mView = new NativeView(getApplication(), vc);
+			this.addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT, 480));
 
-		btnStop = (Button) findViewById(R.id.button2);
-		btnStop.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				vc.ClosePublisher();
-				vc.ClosePlayer();
-			}
-		});
+			// 播放
+			btnListen = (Button) findViewById(R.id.button1);
+			btnListen.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					vc.OpenPlayer(txtRTMPUrl.getText().toString() + " live=1");
+				}
+			});
+
+			// 停止
+			btnStop = (Button) findViewById(R.id.button2);
+			btnStop.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					vc.ClosePlayer();
+				}
+			});
+		} else {
+	        Builder b = new AlertDialog.Builder(null);
+	        b.setTitle(getString(R.string.app_name));
+	        b.setMessage("你的设备不支持OpenGL，无法观看视频！").show();		
+		}
+	}
+
+	public boolean IsSupportOpenGLSE2() {
+		ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+		ConfigurationInfo configurationInfo = activityManager
+				.getDeviceConfigurationInfo();
+
+		return configurationInfo.reqGlEsVersion >= 0x20000;
 	}
 
 	@Override
