@@ -56,9 +56,9 @@ public class NativeView extends GLSurfaceView {
 		public void onDrawFrame(GL10 gl) {
 
 			long dt = System.currentTimeMillis() - startTime;
-		    if (dt < 33) {
+		    if (dt < 66) {
 				try {
-					Thread.sleep(33 - dt);
+					Thread.sleep(66 - dt);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
