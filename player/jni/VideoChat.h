@@ -47,6 +47,7 @@ public:
 
     int Play(const char* szRTMPUrl);
     int StopPlay();
+    void PausePlayer(bool paused);
 
 private:
     static void* _play(void* pVideoChat);
@@ -58,12 +59,14 @@ private:
     VideoRender* pVideoRender;
 
     RTMP* pRtmp;
-    int m_isOpenPlayer;
 
     char* szRTMPUrl;
 
     pthread_t thread_play;
     pthread_attr_t thread_attr;
+    
+    bool m_playing;
+    bool m_paused;
 };
 
 

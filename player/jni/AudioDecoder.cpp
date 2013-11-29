@@ -16,8 +16,8 @@ SpeexCodec::SpeexCodec()
     speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
 
     // disable perceptual enhancer
-    //int enh=0;
-    //speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
+    int enh=0;
+    speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
 }
 
 SpeexCodec::~SpeexCodec()

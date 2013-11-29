@@ -9,8 +9,8 @@
 #include "utils.h"
 
 
-// 一秒钟，16kHz，单声道，16-bit signed little endian，帧大小
-#define AUDIO_FRAMES_SIZE 16000
+// 3秒钟buffer，16kHz，单声道，16-bit signed little endian，帧大小
+#define AUDIO_FRAMES_SIZE (16000*3)
 
 
 //
@@ -23,6 +23,7 @@ public:
     ~AudioOutput();
 
     int play(short* data, int dataSize);
+    void pause(bool paused);
 
 private:
     static void playerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
@@ -43,6 +44,8 @@ private:
     // audio buffer
     short* playerBuffer;
     int playerBufferIndex;
+    
+    bool m_paused;
 };
 
 

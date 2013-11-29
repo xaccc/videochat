@@ -33,8 +33,7 @@ public:
     void set_size(uint32_t width, uint32_t height) { m_width = width; m_height = height; }
     void set_frame(AVFrame* frame, Mutex* frame_lock) { m_frame = frame; m_frame_lock = frame_lock; };
     void render_frame();
-    //int setSurface(JNIEnv *env, jobject jsurface, jint version);
-    //android::Surface* getNativeSurface(JNIEnv* env, jobject jsurface, jint version);
+    void pause(bool paused);
     
     void ready2render(){m_sem.Post();}
 
@@ -70,6 +69,7 @@ private:
 
     int m_viewport_width;
     int m_viewport_height;
+    bool m_paused;
 };
 
 

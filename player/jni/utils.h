@@ -33,6 +33,7 @@ extern "C" {
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
 
+#define SAFE_DELETE(x) if(x) {delete x; x=NULL;}
 
 
 //
