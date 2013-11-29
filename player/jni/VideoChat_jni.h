@@ -17,11 +17,27 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init
 
 /*
  * Class:     cn_videochat_VideoChat
+ * Method:    Release
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     cn_videochat_VideoChat
  * Method:    OpenPublisher
  * Signature: (Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPublisher
   (JNIEnv *, jobject, jstring);
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    PausePublisher
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePublisher
+  (JNIEnv *, jobject, jboolean);
 
 /*
  * Class:     cn_videochat_VideoChat
@@ -41,18 +57,18 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer
 
 /*
  * Class:     cn_videochat_VideoChat
+ * Method:    PausePlayer
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePlayer
+  (JNIEnv *, jobject, jboolean);
+
+/*
+ * Class:     cn_videochat_VideoChat
  * Method:    ClosePlayer
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer
-  (JNIEnv *, jobject);
-
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    Release
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release
   (JNIEnv *, jobject);
 
 /*
@@ -70,7 +86,6 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_InitRender
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame
   (JNIEnv *, jobject);
-
 
 #ifdef __cplusplus
 }

@@ -106,3 +106,26 @@ JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *, jobject
 }
 
 
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    PausePlayer
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePlayer
+  (JNIEnv *, jobject, jboolean paused)
+{
+    g_videochat.PausePlayer(paused);
+}
+
+
+
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    PausePublisher
+ * Signature: (Z)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePublisher
+  (JNIEnv *, jobject, jboolean)
+{
+}

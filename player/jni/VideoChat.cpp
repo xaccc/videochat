@@ -25,9 +25,15 @@ static void DumpBuffer(uint8_t* buffer, uint size)
 
 
 
-
 VideoChat::VideoChat()
-    : m_isOpenPlayer(0), szRTMPUrl(NULL), pSpeexCodec(NULL), pAudioOutput(NULL), pH264Decodec(NULL), pVideoRender(NULL)
+    : m_playing(false)
+    , m_paused(false)
+    , pRtmp(NULL)
+    , szRTMPUrl(NULL)
+    , pSpeexCodec(NULL)
+    , pAudioOutput(NULL)
+    , pH264Decodec(NULL)
+    , pVideoRender(NULL)
 {
     pthread_attr_init(&thread_attr);
     pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
@@ -40,8 +46,7 @@ VideoChat::~VideoChat()
 
 void VideoChat::InitRender(int width, int height)
 {
-    if (pVideoRender)
-        delete pVideoRender;
+    SAFE_DELETE(pVideoRender);
 
     pVideoRender = new VideoRender();
     pVideoRender->set_view(width, height);
@@ -50,6 +55,8 @@ void VideoChat::InitRender(int width, int height)
 
 int VideoChat::Init()
 {
+    Release();
+    
     pSpeexCodec = new SpeexCodec();
     pAudioOutput = new AudioOutput();
     pH264Decodec = new H264Decodec();
@@ -59,29 +66,35 @@ int VideoChat::Init()
 
 void VideoChat::Release()
 {
-    delete pSpeexCodec;
-    delete pAudioOutput;
-    delete pH264Decodec;
-
-    if (pVideoRender)
-        delete pVideoRender;
+    SAFE_DELETE(pSpeexCodec);
+    SAFE_DELETE(pAudioOutput);
+    SAFE_DELETE(pH264Decodec);
+    SAFE_DELETE(pVideoRender);
 }
 
 int VideoChat::Play(const char* url)
 {
-    if (m_isOpenPlayer > 0) return -1;
-    m_isOpenPlayer = 1;
+    if (m_playing) return -1;
+    m_playing = true;
+    
     szRTMPUrl = new char[strlen(url) + 2];
     memset(szRTMPUrl, 0, strlen(url) + 2);
     strcpy(szRTMPUrl, url);
     pthread_create(&thread_play, &thread_attr, &_play, (void*)this);
 }
 
+void VideoChat::PausePlayer(bool paused)
+{
+    m_paused = paused;
+    pAudioOutput->pause(paused);
+    pVideoRender->pause(paused);
+}
+
 int VideoChat::StopPlay()
 {
-    if (m_isOpenPlayer == 0) return -1;
+    if (!m_playing) return -1;
 
-    m_isOpenPlayer = 0;
+    m_playing = false;
     int iRet = pthread_join(thread_play, NULL);
 
     return iRet;
@@ -103,6 +116,17 @@ void* VideoChat::_play(void* pVideoChat)
 #endif
 
     do {
+        bool connected = false;
+        
+        if (pThis->pRtmp) {
+            if (RTMP_IsConnected(pThis->pRtmp)) {
+                RTMP_Close(pThis->pRtmp);
+            }
+            
+            RTMP_Free(pThis->pRtmp);
+            pThis->pRtmp = NULL;
+        }
+
         pThis->pRtmp = RTMP_Alloc();
         RTMP_Init(pThis->pRtmp);
         LOGI("Play RTMP_Init %s\n", pThis->szRTMPUrl);
@@ -119,22 +143,24 @@ void* VideoChat::_play(void* pVideoChat)
         LOGI("RTMP_Connected\n");
 
         RTMPPacket rtmp_pakt = { 0 };
-        while(pThis->m_isOpenPlayer > 0) {
+        
+        while(pThis->m_playing && connected) {
 
             RTMP_GetNextMediaPacket(pThis->pRtmp, &rtmp_pakt);
 
             if (!rtmp_pakt.m_nBodySize)
                 continue;
 
-            if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO) {
-                // 处理音频数据包
-                LOGI( "AudioPacket: Head=0x%X\n", rtmp_pakt.m_body[0]);
+            if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO && 0xB2 == rtmp_pakt.m_body[0]) {
+                // 处理音频数据包 & Speex Encode
                 char* data = rtmp_pakt.m_body + 1;
                 int offset = 0;
                 int data_size = rtmp_pakt.m_nBodySize - 1;
+                LOGI("[PARSE_AUDIO] data_size:%d ", data_size);
                 while(offset < data_size) {
                     // decode data+offset, data_size - offset
-                    pThis->pSpeexCodec->decode(data, data_size, audio_buffer);
+                    pThis->pSpeexCodec->decode(data+offset, data_size, audio_buffer);
+                    LOGI("[PARSE_AUDIO] guss pack_size:%d, guss pack_size-2:%d, data_size:%d", data[0], AMF_DecodeInt16(data), data_size);
                     // play decode ouput_buffer
                     pThis->pAudioOutput->play(audio_buffer, audio_frame_size);
                     offset += data_size;
@@ -174,11 +200,11 @@ void* VideoChat::_play(void* pVideoChat)
 
                         fflush(fd);
                     } else if (!fd){
-                        LOGI("ERROR: don't open video log file!!!");
+                        LOGE("ERROR: don't open video log file!!!");
                     }
 #endif // DEBUG
                 } else {
-                    LOGI( "AVC: CodecId != 7" );
+                    LOGE( "[AVC]Video Codec don't H.264" );
                 }
 
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_INFO) {
@@ -190,7 +216,14 @@ void* VideoChat::_play(void* pVideoChat)
             RTMPPacket_Free(&rtmp_pakt);
         }
 
-    }while(0);
+        if (RTMP_IsConnected(pThis->pRtmp)) {
+            RTMP_Close(pThis->pRtmp);
+        }
+        
+        RTMP_Free(pThis->pRtmp);
+        pThis->pRtmp = NULL;
+        
+    }while(pThis->m_playing);
 
 #ifdef DEBUG
     if (fd) fclose(fd);
@@ -198,11 +231,7 @@ void* VideoChat::_play(void* pVideoChat)
 
     delete[] audio_buffer;
 
-    if (RTMP_IsConnected(pThis->pRtmp)) {
-        RTMP_Close(pThis->pRtmp);
-    }
-    RTMP_Free(pThis->pRtmp);
-    pThis->m_isOpenPlayer = 0;
+    pThis->m_playing = false;
 
     return 0;
 }

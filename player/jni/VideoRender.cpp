@@ -58,7 +58,7 @@ static const char* VERTEX_SHADER =
 VideoRender::VideoRender()
     : m_width(0), m_height(0), m_viewport_width(0), m_viewport_height(0)
     , m_image_buffer(NULL), m_image_buffer_size(0)
-    , pp_c(NULL), pp_m(NULL)
+    , pp_c(NULL), pp_m(NULL), m_paused(false)
 {
     simpleProgram = buildProgram(VERTEX_SHADER, FRAG_SHADER);
     glUseProgram(simpleProgram);
@@ -81,6 +81,12 @@ VideoRender::~VideoRender()
     if (m_image_buffer)
         delete[] m_image_buffer;
 }
+
+void VideoRender::pause(bool paused)
+{
+    m_paused = paused;
+}
+
 
 GLuint VideoRender::bindTexture(GLuint texture, const char *buffer, GLuint w , GLuint h)
 {
@@ -207,18 +213,16 @@ void VideoRender::render_frame()
     uint32_t& width = m_width;
     uint32_t& height = m_height;
     LOGI("[VideoRender::render_frame] size=%dx%d, viewport=%dx%d", width, height, m_viewport_width, m_viewport_height);
-    if (width == 0 || height == 0)
+    if (width == 0 || height == 0 || m_paused)
         return;
 
     glViewport(0, 0, m_viewport_width, m_viewport_height);
 
-    AutoLock lock_frame(*m_frame_lock);
 
-#if 0
 
     // convert
-    if (m_image_buffer_size < ((width*height) << 2)) {
-        m_image_buffer_size = width*height*2;
+    if (m_image_buffer_size < (width*height*4)) {
+        m_image_buffer_size = width*height*4;
         if (m_image_buffer) delete[] m_image_buffer;
         m_image_buffer = new uint8_t[m_image_buffer_size];
         memset(m_image_buffer, 0, m_image_buffer_size);
@@ -237,8 +241,10 @@ void VideoRender::render_frame()
     showheight[0] = height;
     showheight[1] = height >> 1;
     showheight[2] = height >> 1;
-
+    
+#if 0
     if (m_sem.tryWait()) {
+        AutoLock lock_frame(*m_frame_lock);
         if (pp_c == NULL)
             pp_c = pp_get_context( width, height, NULL);
         if (pp_m == NULL)
@@ -250,10 +256,12 @@ void VideoRender::render_frame()
         pp_postprocess((const uint8_t**)m_frame->data, m_frame->linesize, showImage, (const int*)showLx, width, height,
                        qp_table, qstride, pp_m, pp_c, m_frame->pict_type);
     }
-    // bindTexture(m_texYId, (const char*)showImage[0], showLx[0], showheight[0]);
-    // bindTexture(m_texUId, (const char*)showImage[1], showLx[1], showheight[1]);
-    // bindTexture(m_texVId, (const char*)showImage[2], showLx[2], showheight[2]);
+
+    bindTexture(m_texYId, (const char*)showImage[0], showLx[0], showheight[0]);
+    bindTexture(m_texUId, (const char*)showImage[1], showLx[1], showheight[1]);
+    bindTexture(m_texVId, (const char*)showImage[2], showLx[2], showheight[2]);
 #else
+    AutoLock lock_frame(*m_frame_lock);
     bindTexture(m_texYId, (const char*)m_frame->data[0], m_frame->linesize[0], height);
     bindTexture(m_texUId, (const char*)m_frame->data[1], m_frame->linesize[1], height/2);
     bindTexture(m_texVId, (const char*)m_frame->data[2], m_frame->linesize[2], height/2);
