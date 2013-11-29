@@ -17,6 +17,7 @@
 
 #include <android/log.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 // for surface view
 #include <android/bitmap.h>
@@ -49,6 +50,7 @@ extern "C" {
 #endif
 
 #include "libavcodec/avcodec.h"
+#include "libpostproc/postprocess.h"  
 
 #ifdef __cplusplus
 }
@@ -91,6 +93,18 @@ public:
     ~AutoLock()                               { _clsMutex.Unlock(); }
 
     Mutex& _clsMutex;
+};
+class Semaphore
+{
+public:
+    Semaphore() { sem_init(&_semaphore, 0, 0); }
+    ~Semaphore() { sem_destroy(&_semaphore); }
+    
+    void Post() { sem_post(&_semaphore); }
+    void Wait() { sem_wait(&_semaphore); }
+    bool tryWait() { return 0 == sem_trywait(&_semaphore); };
+    
+    sem_t _semaphore;
 };
 
 
@@ -158,11 +172,13 @@ public:
     ~VideoRender();
 
     void set_view(int width, int height) { m_viewport_width = width; m_viewport_height = height; }
-    void set_size(uint32_t width, uint32_t height) {m_width = width; m_height = height;}
+    void set_size(uint32_t width, uint32_t height) { m_width = width; m_height = height; }
     void set_frame(AVFrame* frame, Mutex* frame_lock) { m_frame = frame; m_frame_lock = frame_lock; };
     void render_frame();
     //int setSurface(JNIEnv *env, jobject jsurface, jint version);
     //android::Surface* getNativeSurface(JNIEnv* env, jobject jsurface, jint version);
+    
+    void ready2render(){m_sem.Post();}
 
 private:
     enum {
@@ -179,9 +195,17 @@ private:
     GLuint m_texUId;
     GLuint m_texVId;
     GLuint simpleProgram;
-
+    
+    uint8_t* m_image_buffer;
+    uint32_t m_image_buffer_size;
+    
     AVFrame* m_frame;
     Mutex*   m_frame_lock;
+    
+    Semaphore m_sem;
+    
+    pp_context* pp_c;
+    pp_mode*    pp_m;
 
     uint32_t m_width;
     uint32_t m_height;

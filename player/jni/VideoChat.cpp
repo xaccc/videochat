@@ -5,7 +5,7 @@
  * Licensed under the GPLv2 license. See 'COPYING' for more details.
  *
  */
- 
+
 #include "VideoChat.h"
 
 #define NALU_TYPE_SLICE     1
@@ -226,7 +226,7 @@ SpeexCodec::SpeexCodec()
     speex_bits_init(&dbits);
     dec_state = speex_decoder_init(&speex_wb_mode);
     speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
-    
+
     // disable perceptual enhancer
     //int enh=0;
     //speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
@@ -254,6 +254,8 @@ int SpeexCodec::decode(char* data, int data_size, short* output_buffer)
 ///////////////////////////////////////////////////////////////////////////////
 VideoRender::VideoRender()
     : m_width(0), m_height(0), m_viewport_width(0), m_viewport_height(0)
+    , m_image_buffer(NULL), m_image_buffer_size(0)
+    , pp_c(NULL), pp_m(NULL)
 {
     simpleProgram = buildProgram(VERTEX_SHADER, FRAG_SHADER);
     glUseProgram(simpleProgram);
@@ -264,6 +266,17 @@ VideoRender::VideoRender()
 
 VideoRender::~VideoRender()
 {
+    if(pp_m){  
+        pp_free_mode( pp_m );  
+        pp_m = 0;  
+    }  
+    if(pp_c){  
+        pp_free_context(pp_c);  
+        pp_c = 0;  
+    }  
+    
+    if (m_image_buffer)
+        delete[] m_image_buffer;
 }
 
 GLuint VideoRender::bindTexture(GLuint texture, const char *buffer, GLuint w , GLuint h)
@@ -396,17 +409,57 @@ void VideoRender::render_frame()
         return;
 
     glViewport(0, 0, m_viewport_width, m_viewport_height);
-    bindTexture(m_texYId, (const char*)m_frame->data[0], width, height);
-    bindTexture(m_texUId, (const char*)m_frame->data[1], width/2, height/2);
-    bindTexture(m_texVId, (const char*)m_frame->data[2], width/2, height/2);
 
+#if 0
+
+    // convert
+    if (m_image_buffer_size < ((width*height) << 1)) {
+        m_image_buffer_size = width*height*2;
+        if (m_image_buffer) delete[] m_image_buffer;
+        m_image_buffer = new uint8_t[m_image_buffer_size];
+    }
+
+    uint8_t* showImage[3];
+    uint32_t showheight[3],showLx[3];
+
+    showImage[0] = m_image_buffer;
+    showImage[1] = showImage[0] + width*height;
+    showImage[2] = showImage[1] + width*height/4;
+    showLx[0] = width;
+    showLx[1] = width >> 1;
+    showLx[2] = width >> 1;
+    
+    showheight[0] = height;
+    showheight[1] = height >> 1;
+    showheight[2] = height >> 1;
+
+    if (m_sem.tryWait()) {
+        if (pp_c == NULL)
+            pp_c = pp_get_context( width, height, PP_FORMAT_420);
+        if (pp_m == NULL)
+            pp_m = pp_get_mode_by_name_and_quality( "default", 6 );
+        
+        int qstride, qp_type;
+        int8_t *qp_table = av_frame_get_qp_table(m_frame, &qstride, &qp_type);
+        
+        pp_postprocess((const uint8_t**)m_frame->data, m_frame->linesize, showImage, (const int*)showLx, width, height,
+                       NULL, 0, pp_m, pp_c, m_frame->pict_type);
+    }
+    bindTexture(m_texYId, (const char*)showImage[0], showLx[0], showheight[0]);
+    bindTexture(m_texUId, (const char*)showImage[1], showLx[1], showheight[1]);
+    bindTexture(m_texVId, (const char*)showImage[2], showLx[2], showheight[2]);
+#else
+    bindTexture(m_texYId, (const char*)m_frame->data[0], m_frame->linesize[0], height);
+    bindTexture(m_texUId, (const char*)m_frame->data[1], m_frame->linesize[1], height/2);
+    bindTexture(m_texVId, (const char*)m_frame->data[2], m_frame->linesize[2], height/2);
+#endif
 
 
     // clear background
-    glClearColor(0.5f, 0.5f, 0.5f, 1);
-    checkGlError("glClearColor");
-    glClear(GL_COLOR_BUFFER_BIT);
-    checkGlError("glClear");
+    // glClearColor(0.5f, 0.5f, 0.5f, 1);
+    // checkGlError("glClearColor");
+    // glClear(GL_COLOR_BUFFER_BIT);
+    // checkGlError("glClear");
 
 
     //PRINTF("setsampler %d %d %d", g_texYId, g_texUId, g_texVId);
@@ -467,9 +520,9 @@ void VideoRender::render_frame()
 // class H264Decodec й╣ож
 //
 ///////////////////////////////////////////////////////////////////////////////
-static void log_callback(void* ptr, int level,const char* fmt,va_list vl)  
-{      
-   LOGI(fmt, vl);
+static void log_callback(void* ptr, int level,const char* fmt,va_list vl)
+{
+   // LOGI(fmt, vl);
 }
 
 H264Decodec::H264Decodec()
@@ -480,6 +533,11 @@ H264Decodec::H264Decodec()
 
     _codec = avcodec_find_decoder(CODEC_ID_H264);
     codec_context = avcodec_alloc_context3(_codec);
+
+    codec_context->width  = 352;
+    codec_context->height = 288;
+    codec_context->pix_fmt = PIX_FMT_YUV420P;
+
     avcodec_open2(codec_context, _codec, NULL);
 
     picture = avcodec_alloc_frame();
@@ -564,27 +622,29 @@ int H264Decodec::decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* g
     LOGI("[H264Decodec::decodeSequenceHeader] lengthSizeMinusOne=%d\n", lengthSizeMinusOne);
 
     // trac SPS PPS
-    uint32_t sequenceParameterSetLength = NULL;
+    uint32_t sequenceParameterSetLength = 0;
     uint8_t* sequenceParameterSet       = NULL;
-    uint32_t pictureParameterSetLength  = NULL;
+    uint32_t pictureParameterSetLength  = 0;
     uint8_t* pictureParameterSet        = NULL;
 
     uint32_t numOfSequenceParameterSets = buffer[consumed_bytes] & 0x1F; consumed_bytes++;
-    for(int i = 0; i<numOfSequenceParameterSets; i++) {
+    for(int i = 0; i<numOfSequenceParameterSets && consumed_bytes < buf_size; i++) {
         sequenceParameterSetLength = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
         sequenceParameterSet       = buffer+consumed_bytes; consumed_bytes += sequenceParameterSetLength;
-        LOGI("[H264Decodec::decodeSequenceHeader] SPS Length=%d, NALU-Type: %s\n", sequenceParameterSetLength, get_nalu_type_name(sequenceParameterSet[0]));
     }
 
     uint32_t numOfPictureParameterSets  = buffer[consumed_bytes] & 0x1F; consumed_bytes++;
-    for(int i = 0; i < numOfPictureParameterSets; i++) {
+    for(int i = 0; i < numOfPictureParameterSets && consumed_bytes < buf_size; i++) {
         pictureParameterSetLength  = AMF_DecodeInt16((const char *)buffer+consumed_bytes); consumed_bytes+=2;
         pictureParameterSet        = buffer+consumed_bytes; consumed_bytes += pictureParameterSetLength;
-        LOGI("[H264Decodec::decodeSequenceHeader] PPS Length=%d, NALU-Type: %s\n", pictureParameterSetLength, get_nalu_type_name(pictureParameterSet[0]));
     }
-    
+
+    LOGI("[H264Decodec::decodeSequenceHeader] SPS Length=%d, NALU-Type: %s, PPS Length=%d, NALU-Type: %s\n",
+        sequenceParameterSetLength, get_nalu_type_name(sequenceParameterSet[0]),
+        pictureParameterSetLength, get_nalu_type_name(pictureParameterSet[0]));
+
     final_decode_header(
-        sequenceParameterSet, sequenceParameterSetLength, 
+        sequenceParameterSet, sequenceParameterSetLength,
         pictureParameterSet, pictureParameterSetLength, got_picture);
 }
 
@@ -604,19 +664,21 @@ int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture
         }
         consumed_bytes += lengthSizeMinusOne;
 
-        //LOGI("[H264Decodec::decodeNALU] NALU-Length = %d, NALU-Type: (%d) %s\n", nalu_size, buffer[consumed_bytes]&0x1f, get_nalu_type_name(buffer[consumed_bytes]));
+        LOGI("[H264Decodec::decodeNALU] NALU-Length = %d, NALU-Type: (%d) %s\n", nalu_size, buffer[consumed_bytes]&0x1f, get_nalu_type_name(buffer[consumed_bytes]));
 
         final_decode(buffer + consumed_bytes, nalu_size, got_picture);
 
         if (*got_picture > 0) {
-            LOGI("[H264Decodec::decodeNALU] got-picture: true, picture-size: %dx%d", codec_context->width, codec_context->height);
+            LOGI("[H264Decodec::decodeNALU] got-picture, size: %dx%d, p1linesize=%d, p2linesize=%d, p3linesize=%d",
+                codec_context->width, codec_context->height,
+                picture->linesize[0], picture->linesize[1], picture->linesize[2]);
         }
         consumed_bytes += nalu_size;
     }
 }
 
 int H264Decodec::final_decode_header(
-    uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength, 
+    uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength,
     uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, int* got_picture) {
 
     AVPacket packet = {0};
@@ -628,7 +690,7 @@ int H264Decodec::final_decode_header(
         dec_buffer = new uint8_t[dec_buffer_size];
     }
 
-    dec_buffer[0] = 0; dec_buffer[sequenceParameterSetLength + 4 + 0] = 0; 
+    dec_buffer[0] = 0; dec_buffer[sequenceParameterSetLength + 4 + 0] = 0;
     dec_buffer[1] = 0; dec_buffer[sequenceParameterSetLength + 4 + 1] = 0;
     dec_buffer[2] = 0; dec_buffer[sequenceParameterSetLength + 4 + 2] = 0;
     dec_buffer[3] = 1; dec_buffer[sequenceParameterSetLength + 4 + 3] = 1;
@@ -804,11 +866,12 @@ void* VideoChat::_play(void* pVideoChat)
                     int got_picture = 0;
                     pThis->pH264Decodec->decode((uint8_t*)packetBody, packetBodySize, &got_picture);
 
-                    if (got_picture && pThis->pVideoRender) 
+                    if (got_picture && pThis->pVideoRender)
                     {
                         pThis->pVideoRender->set_size(
                             pThis->pH264Decodec->getWidth(),
                             pThis->pH264Decodec->getHeight());
+                        pThis->pVideoRender->ready2render();
                     }
 
 #ifdef DEBUG
@@ -818,9 +881,12 @@ void* VideoChat::_play(void* pVideoChat)
                         uint32_t width = pThis->pH264Decodec->getWidth();
                         uint32_t height = pThis->pH264Decodec->getHeight();
 
-                        fwrite(frame->data[0], 1, width * height, fd);
-                        fwrite(frame->data[1], 1, width * height / 4, fd);
-                        fwrite(frame->data[2], 1, width * height / 4, fd);
+                        for(int lines = 0; lines < height; lines ++)
+                            fwrite(frame->data[0]+frame->linesize[0]*lines, 1, width, fd);
+                        for(int lines = 0; lines < height/2; lines ++)
+                            fwrite(frame->data[1]+frame->linesize[1]*lines, 1, width/2, fd);
+                        for(int lines = 0; lines < height/2; lines ++)
+                            fwrite(frame->data[2]+frame->linesize[2]*lines, 1, width/2, fd);
 
                         fflush(fd);
                     } else if (!fd){
