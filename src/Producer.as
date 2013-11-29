@@ -179,10 +179,10 @@ package {
             mic.encodeQuality = 9;
             mic.gain = 85;
             mic.rate = 11;
-            mic.setSilenceLevel(0, 15000);
+            mic.setSilenceLevel(0, -1);
             mic.framesPerPacket = 1;
             mic.setUseEchoSuppression(false);
-            mic.enableVAD = true;
+            mic.enableVAD = false;
         }
         
         private function setVideo():void {
