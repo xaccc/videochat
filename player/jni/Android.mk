@@ -18,7 +18,11 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE    := vc
 LOCAL_SRC_FILES := VideoChat.cpp \
-                   VideoChat_jni.cpp
+                   VideoChat_jni.cpp \
+                   AudioDecoder.cpp \
+                   AudioRender.cpp \
+                   VideoDecoder.cpp \
+                   VideoRender.cpp
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
@@ -42,7 +46,7 @@ LOCAL_LDLIBS    += -lrtmp
 # for x264
 #LOCAL_LDLIBS    += -lx264
 # for ffmpeg
-LOCAL_LDLIBS    += -lavcodec -lavutil
+LOCAL_LDLIBS    += -lavcodec -lavutil -lpostproc
 
 
 include $(BUILD_SHARED_LIBRARY)
