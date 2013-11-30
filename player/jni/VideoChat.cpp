@@ -50,7 +50,6 @@ void VideoChat::InitRender(int width, int height)
 
     pVideoRender = new VideoRender();
     pVideoRender->set_view(width, height);
-    pVideoRender->set_frame(pH264Decodec->getPicture(), &pH264Decodec->getPictureLock());
 }
 
 int VideoChat::Init()
@@ -104,8 +103,14 @@ void* VideoChat::_play(void* pVideoChat)
 {
     VideoChat* pThis = (VideoChat*)pVideoChat;
 
+    const int max_audio_buffer_size = 100;
+    
     int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
-    short *audio_buffer = audio_frame_size > 0 ? new short[audio_frame_size] : NULL;
+    short *audio_buffer[max_audio_buffer_size] = {0};
+    audio_buffer[0] = new short[audio_frame_size*max_audio_buffer_size];
+    
+    for(int i=1; i<max_audio_buffer_size; i++)
+        audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
 
     //int result_code = mkdir("/data/data/cn.videochat.MainActivity/files/", 0770);
 #ifdef DEBUG
@@ -131,15 +136,18 @@ void* VideoChat::_play(void* pVideoChat)
         RTMP_Init(pThis->pRtmp);
         LOGI("Play RTMP_Init %s\n", pThis->szRTMPUrl);
         if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szRTMPUrl)) {
-            LOGI("Play RTMP_SetupURL error\n");
+            LOGE("Play RTMP_SetupURL error\n");
             break; // error
         }
 
         if (!RTMP_Connect(pThis->pRtmp, NULL) || !RTMP_ConnectStream(pThis->pRtmp, 0)) {
             LOGI("Play RTMP_Connect or RTMP_ConnectStream error\n");
-            break; // error
+            RTMP_Free(pThis->pRtmp);
+            pThis->pRtmp = NULL;
+            continue; // reconnection
         }
 
+        connected = true;
         LOGI("RTMP_Connected\n");
 
         RTMPPacket rtmp_pakt = { 0 };
@@ -148,23 +156,20 @@ void* VideoChat::_play(void* pVideoChat)
 
             RTMP_GetNextMediaPacket(pThis->pRtmp, &rtmp_pakt);
 
-            if (!rtmp_pakt.m_nBodySize)
-                continue;
+            if (!RTMP_IsConnected(pThis->pRtmp) || !rtmp_pakt.m_nBodySize) {
+                connected = false;
+                continue; // post reconnection
+            }
 
             if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO && 0xB2 == rtmp_pakt.m_body[0]) {
                 // 处理音频数据包 & Speex Encode
                 char* data = rtmp_pakt.m_body + 1;
-                int offset = 0;
                 int data_size = rtmp_pakt.m_nBodySize - 1;
-                LOGI("[PARSE_AUDIO] data_size:%d ", data_size);
-                while(offset < data_size) {
-                    // decode data+offset, data_size - offset
-                    pThis->pSpeexCodec->decode(data+offset, data_size, audio_buffer);
-                    LOGI("[PARSE_AUDIO] guss pack_size:%d, guss pack_size-2:%d, data_size:%d", data[0], AMF_DecodeInt16(data), data_size);
-                    // play decode ouput_buffer
-                    pThis->pAudioOutput->play(audio_buffer, audio_frame_size);
-                    offset += data_size;
-                }
+                int dec_audio_count = pThis->pSpeexCodec->decode(data, data_size, audio_buffer);
+                // play decode ouput_buffer
+                pThis->pAudioOutput->play(audio_buffer[0], audio_frame_size*dec_audio_count);
+                LOGI("[PARSE_AUDIO] dec_audio_count:%d, data_size:%d ", dec_audio_count, data_size);
+                
             } else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO) {
                 // 处理视频数据包
                 /* H264 fix: */
@@ -178,31 +183,16 @@ void* VideoChat::_play(void* pVideoChat)
 
                     if (got_picture && pThis->pVideoRender)
                     {
-                        pThis->pVideoRender->set_size(
+                        // pThis->pVideoRender->set_size(
+                            // pThis->pH264Decodec->getWidth(),
+                            // pThis->pH264Decodec->getHeight());
+                        //pThis->pVideoRender->ready2render();
+                        pThis->pVideoRender->set_frame(
+                            pThis->pH264Decodec->getFrame(),
                             pThis->pH264Decodec->getWidth(),
                             pThis->pH264Decodec->getHeight());
-                        pThis->pVideoRender->ready2render();
                     }
 
-#ifdef DEBUG
-                    // debug data
-                    if (got_picture && fd) {
-                        AVFrame *frame = pThis->pH264Decodec->getPicture();
-                        uint32_t width = pThis->pH264Decodec->getWidth();
-                        uint32_t height = pThis->pH264Decodec->getHeight();
-
-                        for(int lines = 0; lines < height; lines ++)
-                            fwrite(frame->data[0]+frame->linesize[0]*lines, 1, width, fd);
-                        for(int lines = 0; lines < height/2; lines ++)
-                            fwrite(frame->data[1]+frame->linesize[1]*lines, 1, width/2, fd);
-                        for(int lines = 0; lines < height/2; lines ++)
-                            fwrite(frame->data[2]+frame->linesize[2]*lines, 1, width/2, fd);
-
-                        fflush(fd);
-                    } else if (!fd){
-                        LOGE("ERROR: don't open video log file!!!");
-                    }
-#endif // DEBUG
                 } else {
                     LOGE( "[AVC]Video Codec don't H.264" );
                 }
@@ -214,6 +204,7 @@ void* VideoChat::_play(void* pVideoChat)
             }
 
             RTMPPacket_Free(&rtmp_pakt);
+            
         }
 
         if (RTMP_IsConnected(pThis->pRtmp)) {
@@ -229,7 +220,7 @@ void* VideoChat::_play(void* pVideoChat)
     if (fd) fclose(fd);
 #endif
 
-    delete[] audio_buffer;
+    if (audio_buffer[0]) delete[] audio_buffer[0];
 
     pThis->m_playing = false;
 

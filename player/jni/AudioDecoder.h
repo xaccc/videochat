@@ -20,7 +20,7 @@ public:
     SpeexCodec();
     ~SpeexCodec();
 
-    int decode(char* data, int data_size, short* output_buffer);
+    int decode(char* data, int data_size, short** output_buffer);
 
     int output_buffer_size() { return dec_frame_size * sizeof(short); }
     int audio_frame_size() { return dec_frame_size; }

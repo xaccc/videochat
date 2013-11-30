@@ -29,8 +29,8 @@ public:
     ~H264Decodec();
 
     int decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_picture);
-    AVFrame* getPicture(void){ return picture; }
-    Mutex& getPictureLock(void){return _picture_lock;};
+    AVFrame* getFrame(void){ return picture; }
+    Mutex& getFrameLock(void){return _picture_lock;};
 
     uint32_t getWidth() { return codec_context->width; }
     uint32_t getHeight() { return codec_context->height; }

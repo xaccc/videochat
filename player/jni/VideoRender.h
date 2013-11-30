@@ -14,6 +14,7 @@ extern "C" {
 
 #include "libavcodec/avcodec.h"
 #include "libpostproc/postprocess.h"  
+#include "libavutil/imgutils.h"
 
 } // extern "C" 
 
@@ -29,14 +30,11 @@ public:
     VideoRender();
     ~VideoRender();
 
-    void set_view(int width, int height) { m_viewport_width = width; m_viewport_height = height; }
-    void set_size(uint32_t width, uint32_t height) { m_width = width; m_height = height; }
-    void set_frame(AVFrame* frame, Mutex* frame_lock) { m_frame = frame; m_frame_lock = frame_lock; };
+    void set_view(int width, int height);
+    void set_frame(AVFrame* frame, uint32_t width, uint32_t height);
     void render_frame();
     void pause(bool paused);
     
-    void ready2render(){m_sem.Post();}
-
 private:
     enum {
         ATTRIB_VERTEX,
@@ -53,17 +51,13 @@ private:
     GLuint m_texVId;
     GLuint simpleProgram;
     
-    uint8_t* m_image_buffer;
-    uint32_t m_image_buffer_size;
-    
     AVFrame* m_frame;
     Mutex*   m_frame_lock;
     
-    Semaphore m_sem;
+    Mutex      m_myPictureLock;
+    AVPicture* m_myPicture;
+    int        m_myPictureSize;
     
-    pp_context* pp_c;
-    pp_mode*    pp_m;
-
     uint32_t m_width;
     uint32_t m_height;
 

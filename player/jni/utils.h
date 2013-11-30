@@ -35,6 +35,13 @@ extern "C" {
 
 #define SAFE_DELETE(x) if(x) {delete x; x=NULL;}
 
+#ifndef min
+#define min(a,b) (a>b?b:a)
+#endif
+
+#ifndef max
+#define max(a,b) (a>b?a:b)
+#endif
 
 //
 // Thead mutex

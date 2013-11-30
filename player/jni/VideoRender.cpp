@@ -29,15 +29,15 @@ static const char* FRAG_SHADER =
     "uniform sampler2D SamplerV;                    \n"
     "void main(void)                                \n"
     "{                                              \n"
-        "mediump vec3 yuv;                          \n"
-        "lowp vec3 rgb;                             \n"
-        "yuv.x = texture2D(SamplerY, tc).r;         \n"
-        "yuv.y = texture2D(SamplerU, tc).r - 0.5;   \n"
-        "yuv.z = texture2D(SamplerV, tc).r - 0.5;   \n"
-        "rgb = mat3( 1, 1, 1,                       \n"
-                    "0, -0.39465, 2.03211,          \n"
-                    "1.13983, -0.58060, 0) * yuv;   \n"
-        "gl_FragColor = vec4(rgb, 1);               \n"
+    "    mediump vec3 yuv;                          \n"
+    "    lowp vec3 rgb;                             \n"
+    "    yuv.x = texture2D(SamplerY, tc).r;         \n"
+    "    yuv.y = texture2D(SamplerU, tc).r - 0.5;   \n"
+    "    yuv.z = texture2D(SamplerV, tc).r - 0.5;   \n"
+    "    rgb = mat3( 1, 1, 1,                       \n"
+    "                0, -0.39465, 2.03211,          \n"
+    "                1.13983, -0.58060, 0) * yuv;   \n"
+    "    gl_FragColor = vec4(rgb, 1);               \n"
     "}                                              \n";
 
 //
@@ -56,30 +56,24 @@ static const char* VERTEX_SHADER =
 
 
 VideoRender::VideoRender()
-    : m_width(0), m_height(0), m_viewport_width(0), m_viewport_height(0)
-    , m_image_buffer(NULL), m_image_buffer_size(0)
-    , pp_c(NULL), pp_m(NULL), m_paused(false)
+    : m_width(0), m_height(0), m_paused(false)
 {
     simpleProgram = buildProgram(VERTEX_SHADER, FRAG_SHADER);
     glUseProgram(simpleProgram);
     glGenTextures(1, &m_texYId);
     glGenTextures(1, &m_texUId);
     glGenTextures(1, &m_texVId);
+    
+    m_myPicture = (AVPicture*)av_malloc(sizeof(AVPicture));
+    memset(m_myPicture, 0, sizeof(AVPicture));
+    m_myPictureSize = 0;
 }
 
 VideoRender::~VideoRender()
 {
-    if(pp_m){  
-        pp_free_mode( pp_m );  
-        pp_m = 0;  
-    }  
-    if(pp_c){  
-        pp_free_context(pp_c);  
-        pp_c = 0;  
-    }  
-    
-    if (m_image_buffer)
-        delete[] m_image_buffer;
+    if (m_myPicture->data[0])
+        av_free(m_myPicture->data[0]);
+    av_free(m_myPicture);
 }
 
 void VideoRender::pause(bool paused)
@@ -206,122 +200,80 @@ static GLfloat gl_coordVertices[] = {
 };
 #endif
 
+void VideoRender::set_view(int width, int height) 
+{
+    glViewport(0, 0, width, height);
+}
+
+
+void VideoRender::set_frame(AVFrame* frame, uint32_t width, uint32_t height)
+{
+    AutoLock lock_frame(m_myPictureLock);
+    
+    if ( m_width != width || m_height != height ) {
+        // realloc picture
+        if (m_myPicture->data[0])
+            av_free(m_myPicture->data[0]);
+        
+        m_myPicture->data[0] = NULL;
+        m_myPictureSize = av_image_alloc(
+            m_myPicture->data, m_myPicture->linesize,
+            width, height, AV_PIX_FMT_YUV420P, 1);
+    }
+    
+    if (m_myPictureSize > 0 && m_myPicture->data[0]) {
+        m_width = width;
+        m_height = height;
+        av_image_copy(m_myPicture->data, m_myPicture->linesize, (const uint8_t**)frame->data, frame->linesize, 
+            AV_PIX_FMT_YUV420P, width, height);
+    } else {
+        LOGE("[VideoRender::set_frame] alloc picture memory failed!");
+    }
+}
+
 void VideoRender::render_frame()
 {
+    AutoLock lock_frame(m_myPictureLock);
+
     // render
-
-    uint32_t& width = m_width;
-    uint32_t& height = m_height;
-    LOGI("[VideoRender::render_frame] size=%dx%d, viewport=%dx%d", width, height, m_viewport_width, m_viewport_height);
-    if (width == 0 || height == 0 || m_paused)
+    if (m_myPicture->data[0] == NULL || m_paused)
         return;
-
-    glViewport(0, 0, m_viewport_width, m_viewport_height);
-
-
-
-    // convert
-    if (m_image_buffer_size < (width*height*4)) {
-        m_image_buffer_size = width*height*4;
-        if (m_image_buffer) delete[] m_image_buffer;
-        m_image_buffer = new uint8_t[m_image_buffer_size];
-        memset(m_image_buffer, 0, m_image_buffer_size);
-    }
-
-    uint8_t* showImage[3];
-    uint32_t showheight[3],showLx[3];
-
-    showImage[0] = m_image_buffer;
-    showImage[1] = showImage[0] + width*height;
-    showImage[2] = showImage[1] + width*height/4;
-    showLx[0] = width;
-    showLx[1] = width >> 1;
-    showLx[2] = width >> 1;
     
-    showheight[0] = height;
-    showheight[1] = height >> 1;
-    showheight[2] = height >> 1;
-    
-#if 0
-    if (m_sem.tryWait()) {
-        AutoLock lock_frame(*m_frame_lock);
-        if (pp_c == NULL)
-            pp_c = pp_get_context( width, height, NULL);
-        if (pp_m == NULL)
-            pp_m = pp_get_mode_by_name_and_quality( "ac", PP_QUALITY_MAX );
-        
-        int qstride, qp_type;
-        int8_t *qp_table = av_frame_get_qp_table(m_frame, &qstride, &qp_type);
-        
-        pp_postprocess((const uint8_t**)m_frame->data, m_frame->linesize, showImage, (const int*)showLx, width, height,
-                       qp_table, qstride, pp_m, pp_c, m_frame->pict_type);
-    }
-
-    bindTexture(m_texYId, (const char*)showImage[0], showLx[0], showheight[0]);
-    bindTexture(m_texUId, (const char*)showImage[1], showLx[1], showheight[1]);
-    bindTexture(m_texVId, (const char*)showImage[2], showLx[2], showheight[2]);
-#else
-    AutoLock lock_frame(*m_frame_lock);
-    bindTexture(m_texYId, (const char*)m_frame->data[0], m_frame->linesize[0], height);
-    bindTexture(m_texUId, (const char*)m_frame->data[1], m_frame->linesize[1], height/2);
-    bindTexture(m_texVId, (const char*)m_frame->data[2], m_frame->linesize[2], height/2);
-#endif
+    bindTexture(m_texYId, (const char*)m_myPicture->data[0], m_myPicture->linesize[0], m_height);
+    bindTexture(m_texUId, (const char*)m_myPicture->data[1], m_myPicture->linesize[1], m_height/2);
+    bindTexture(m_texVId, (const char*)m_myPicture->data[2], m_myPicture->linesize[2], m_height/2);
     
     // clear background
-    // glClearColor(0.5f, 0.5f, 0.5f, 1);
-    // checkGlError("glClearColor");
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    checkGlError("glClearColor");
     glClear(GL_COLOR_BUFFER_BIT);
     checkGlError("glClear");
 
-
-    //PRINTF("setsampler %d %d %d", g_texYId, g_texUId, g_texVId);
     GLint tex_y = glGetUniformLocation(simpleProgram, "SamplerY");
-    checkGlError("glGetUniformLocation");
     GLint tex_u = glGetUniformLocation(simpleProgram, "SamplerU");
-    checkGlError("glGetUniformLocation");
     GLint tex_v = glGetUniformLocation(simpleProgram, "SamplerV");
-    checkGlError("glGetUniformLocation");
-
 
     glBindAttribLocation(simpleProgram, ATTRIB_VERTEX, "vPosition");
-    checkGlError("glBindAttribLocation");
     glBindAttribLocation(simpleProgram, ATTRIB_TEXTURE, "a_texCoord");
-    checkGlError("glBindAttribLocation");
 
     glVertexAttribPointer(ATTRIB_VERTEX, 2, GL_FLOAT, 0, 0, gl_squareVertices);
-    checkGlError("glVertexAttribPointer");
     glEnableVertexAttribArray(ATTRIB_VERTEX);
-    checkGlError("glEnableVertexAttribArray");
 
     glVertexAttribPointer(ATTRIB_TEXTURE, 2, GL_FLOAT, 0, 0, gl_coordVertices);
-    checkGlError("glVertexAttribPointer");
     glEnableVertexAttribArray(ATTRIB_TEXTURE);
-    checkGlError("glEnableVertexAttribArray");
 
     glActiveTexture(GL_TEXTURE0);
-    checkGlError("glActiveTexture");
     glBindTexture(GL_TEXTURE_2D, m_texYId);
-    checkGlError("glBindTexture");
     glUniform1i(tex_y, 0);
-    checkGlError("glUniform1i");
 
     glActiveTexture(GL_TEXTURE1);
-    checkGlError("glActiveTexture");
     glBindTexture(GL_TEXTURE_2D, m_texUId);
-    checkGlError("glBindTexture");
     glUniform1i(tex_u, 1);
-    checkGlError("glUniform1i");
 
     glActiveTexture(GL_TEXTURE2);
-    checkGlError("glActiveTexture");
     glBindTexture(GL_TEXTURE_2D, m_texVId);
-    checkGlError("glBindTexture");
     glUniform1i(tex_v, 2);
-    checkGlError("glUniform1i");
 
-    // glEnable(GL_TEXTURE_2D);
-    // checkGlError("glEnable");
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    checkGlError("glDrawArrays");
 }
 
