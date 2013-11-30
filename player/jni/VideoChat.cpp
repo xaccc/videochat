@@ -1,5 +1,7 @@
 #include "VideoChat.h"
-
+extern "C"{
+#include <librtmp/http.h>
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -29,6 +31,7 @@ VideoChat::VideoChat()
     : m_playing(false)
     , m_paused(false)
     , pRtmp(NULL)
+    , szUrl(NULL)
     , szRTMPUrl(NULL)
     , pSpeexCodec(NULL)
     , pAudioOutput(NULL)
@@ -41,7 +44,8 @@ VideoChat::VideoChat()
 
 VideoChat::~VideoChat()
 {
-    if (szRTMPUrl) delete[] szRTMPUrl;
+    if (szUrl) delete[] szUrl;
+    if (szRTMPUrl) delete[] szUrl;
 }
 
 void VideoChat::InitRender(int width, int height)
@@ -76,9 +80,10 @@ int VideoChat::Play(const char* url)
     if (m_playing) return -1;
     m_playing = true;
     
-    szRTMPUrl = new char[strlen(url) + 2];
-    memset(szRTMPUrl, 0, strlen(url) + 2);
-    strcpy(szRTMPUrl, url);
+    if (szUrl) delete[] szUrl;
+    szUrl = new char[strlen(url) + 2];
+    memset(szUrl, 0, strlen(url) + 2);
+    strcpy(szUrl, url);
     pthread_create(&thread_play, &thread_attr, &_play, (void*)this);
 }
 
@@ -99,27 +104,37 @@ int VideoChat::StopPlay()
     return iRet;
 }
 
+static size_t convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+{
+    VideoChat* pThis = (VideoChat*)stream;
+    LOGI("HTTP Response: %s", (char*)ptr);
+    return 0;
+}
+
 void* VideoChat::_play(void* pVideoChat)
 {
     VideoChat* pThis = (VideoChat*)pVideoChat;
 
     const int max_audio_buffer_size = 100;
     
+    // alloc audio buffers list
     int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
     short *audio_buffer[max_audio_buffer_size] = {0};
     audio_buffer[0] = new short[audio_frame_size*max_audio_buffer_size];
-    
     for(int i=1; i<max_audio_buffer_size; i++)
         audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
 
-    //int result_code = mkdir("/data/data/cn.videochat.MainActivity/files/", 0770);
-#ifdef DEBUG
-    FILE* fd = fopen("/sdcard/video_data.yuv", "wb");
-    if (!fd) {
-        LOGI("ERROR: create debug decode video file failed!!!");
+    // convert UID to RTMP
+    HTTP_ctx http_c = {0};
+    http_c.date = "\0";
+    http_c.data = (char*)pThis;
+    if (HTTPRES_OK == HTTP_get(&http_c, "http://183.203.16.207:8108/videochat/api/liveUrl/user1", convert_UID_to_RTMP_callback)) {
+        LOGI("HTTP_get: HTTPRES_OK");
+    } else {
+        // TODO: retry ???
     }
-#endif
-
+        
+    // while do connect media server
     do {
         bool connected = false;
         
@@ -134,8 +149,8 @@ void* VideoChat::_play(void* pVideoChat)
 
         pThis->pRtmp = RTMP_Alloc();
         RTMP_Init(pThis->pRtmp);
-        LOGI("Play RTMP_Init %s\n", pThis->szRTMPUrl);
-        if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szRTMPUrl)) {
+        LOGI("Play RTMP_Init %s\n", pThis->szUrl);
+        if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szUrl)) {
             LOGE("Play RTMP_SetupURL error\n");
             break; // error
         }

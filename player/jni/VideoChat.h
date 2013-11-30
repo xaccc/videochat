@@ -45,7 +45,7 @@ public:
     void InitRender(int width, int height);
     void RenderFrame() { if (pVideoRender) pVideoRender->render_frame(); }
 
-    int Play(const char* szRTMPUrl);
+    int Play(const char* szUrl);
     int StopPlay();
     void PausePlayer(bool paused);
 
@@ -60,6 +60,7 @@ private:
 
     RTMP* pRtmp;
 
+    char* szUrl;
     char* szRTMPUrl;
 
     pthread_t thread_play;
