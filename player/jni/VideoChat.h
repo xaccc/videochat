@@ -51,7 +51,8 @@ public:
 
 private:
     static void* _play(void* pVideoChat);
-    
+    static size_t convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream);
+
 private:
     SpeexCodec* pSpeexCodec;
     AudioOutput* pAudioOutput;

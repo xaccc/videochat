@@ -22,7 +22,8 @@ LOCAL_SRC_FILES := VideoChat.cpp \
                    AudioDecoder.cpp \
                    AudioRender.cpp \
                    VideoDecoder.cpp \
-                   VideoRender.cpp
+                   VideoRender.cpp \
+                   json.c
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include

@@ -1,4 +1,5 @@
 #include "VideoChat.h"
+#include "json.h"
 extern "C"{
 #include <librtmp/http.h>
 }
@@ -104,10 +105,43 @@ int VideoChat::StopPlay()
     return iRet;
 }
 
-static size_t convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream)
+// 正常调用返回以下结构数据
+// {
+//     "Method":"liveUrl",
+//     "UID":"user1",
+//     "Host":"183.203.16.207",
+//     "Port":8100,
+//     "Application":"live",
+//     "Session":"24c9e15e52afc47c225b757e7bee1f9d"
+// }
+#define MAX_RTMPURL_SIZE    4096
+size_t VideoChat::convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream)
 {
+    LOGI("[HTTP_get] enter convert_UID_to_RTMP_callback!");
+    LOGI("[HTTP_get] size:%d, data: %s", size, (char*)ptr);
+
     VideoChat* pThis = (VideoChat*)stream;
-    LOGI("HTTP Response: %s", (char*)ptr);
+    json_value* data_ptr = json_parse((char*)ptr, strlen((char*)ptr));
+    
+    if (data_ptr) {
+        json_value& data = *data_ptr;
+        
+        if (pThis->szRTMPUrl) delete[] pThis->szRTMPUrl;
+        pThis->szRTMPUrl = new char[MAX_RTMPURL_SIZE];
+        memset(pThis->szRTMPUrl, 0, MAX_RTMPURL_SIZE);
+        
+        snprintf(pThis->szRTMPUrl, MAX_RTMPURL_SIZE, "rtmp://%s:%d/%s/%s live=1", 
+                (const char*)data["Host"], 
+                (int)(json_int_t)data["Port"], 
+                (const char*)data["Application"], 
+                (const char*)data["Session"]);
+    
+        LOGI("[HTTP_get] json_parse: %s", pThis->szRTMPUrl);
+        // relase
+        json_value_free(data_ptr);
+    } else {
+        LOGI("[HTTP_get] json_parse error");
+    }
     return 0;
 }
 
@@ -128,10 +162,11 @@ void* VideoChat::_play(void* pVideoChat)
     HTTP_ctx http_c = {0};
     http_c.date = "\0";
     http_c.data = (char*)pThis;
-    if (HTTPRES_OK == HTTP_get(&http_c, "http://183.203.16.207:8108/videochat/api/liveUrl/user1", convert_UID_to_RTMP_callback)) {
-        LOGI("HTTP_get: HTTPRES_OK");
+    if (HTTPRES_OK == HTTP_get(&http_c, pThis->szUrl, convert_UID_to_RTMP_callback)) {
+        LOGI("[HTTP_get] HTTPRES_OK");
     } else {
         // TODO: retry ???
+        LOGI("[HTTP_get] failed!");
     }
         
     // while do connect media server
@@ -149,8 +184,8 @@ void* VideoChat::_play(void* pVideoChat)
 
         pThis->pRtmp = RTMP_Alloc();
         RTMP_Init(pThis->pRtmp);
-        LOGI("Play RTMP_Init %s\n", pThis->szUrl);
-        if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szUrl)) {
+        LOGI("Play RTMP_Init %s\n", pThis->szRTMPUrl);
+        if (!RTMP_SetupURL(pThis->pRtmp, (char*)pThis->szRTMPUrl)) {
             LOGE("Play RTMP_SetupURL error\n");
             break; // error
         }
