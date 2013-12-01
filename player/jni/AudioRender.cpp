@@ -79,22 +79,30 @@ void AudioOutput::pause(bool paused)
 
 int AudioOutput::play(short* data, int dataSize)
 {
-    int last = 0;
-    SLresult result;
-    
-    if (m_paused) return -1;
-    
-    while (dataSize > 0) {
-        last = (AUDIO_FRAMES_SIZE - playerBufferIndex) > dataSize ?
-                dataSize : dataSize + playerBufferIndex - AUDIO_FRAMES_SIZE;
+    if (dataSize > AUDIO_FRAMES_SIZE/5)
+    {
+        // 立即render , 测试过，立即播放抖动很厉害，没法听，也是由于dataSize过小导致的
+        (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, data, dataSize * sizeof(short));
+        LOGI("[AudioOutput::play] just Enqueue.");
+    } else {
+        // 缓存buffer 1s
+        int last = 0;
+        SLresult result;
+        
+        if (m_paused) return -1;
+        
+        while (dataSize > 0) {
+            last = min(AUDIO_FRAMES_SIZE - playerBufferIndex, dataSize);
 
-        memcpy(playerBuffer + playerBufferIndex, data, last * sizeof(short));
-        playerBufferIndex += last;
-        dataSize -= last;
+            memcpy(playerBuffer + playerBufferIndex, data, last * sizeof(short));
+            playerBufferIndex += last;
+            dataSize -= last;
 
-        if(playerBufferIndex == AUDIO_FRAMES_SIZE) {
-            (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, playerBuffer, playerBufferIndex * sizeof(short));
-            playerBufferIndex = 0;
+            if(playerBufferIndex == AUDIO_FRAMES_SIZE) {
+                (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, playerBuffer, playerBufferIndex * sizeof(short));
+                playerBufferIndex = 0;
+                LOGI("[AudioOutput::play] PlayerBufferQueue Enqueue.");
+            }
         }
     }
 }

@@ -9,8 +9,8 @@
 #include "utils.h"
 
 
-// 3秒钟buffer，16kHz，单声道，16-bit signed little endian，帧大小
-#define AUDIO_FRAMES_SIZE (16000*3)
+// 1秒钟buffer，16kHz，单声道，16-bit signed little endian，帧大小
+#define AUDIO_FRAMES_SIZE 16000
 
 
 //

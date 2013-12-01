@@ -45,13 +45,14 @@ public:
     void InitRender(int width, int height);
     void RenderFrame() { if (pVideoRender) pVideoRender->render_frame(); }
 
-    int Play(const char* szRTMPUrl);
+    int Play(const char* szUrl);
     int StopPlay();
     void PausePlayer(bool paused);
 
 private:
     static void* _play(void* pVideoChat);
-    
+    static size_t convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream);
+
 private:
     SpeexCodec* pSpeexCodec;
     AudioOutput* pAudioOutput;
@@ -60,6 +61,7 @@ private:
 
     RTMP* pRtmp;
 
+    char* szUrl;
     char* szRTMPUrl;
 
     pthread_t thread_play;
