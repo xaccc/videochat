@@ -31,7 +31,7 @@ public class NativeView extends GLSurfaceView {
 			videochat = vc;
 		}
 
-		final int fps = 1000/15; // 15fps
+		final int fps = 1000/25; // max 25fps 
 		long startTime = System.currentTimeMillis();
 		public void onDrawFrame(GL10 gl) {
 

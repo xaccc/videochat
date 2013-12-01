@@ -48,7 +48,7 @@ public class MainActivity extends Activity {
 			btnListen.setOnClickListener(new OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					vc.OpenPlayer(txtRTMPUrl.getText().toString() + " live=1");
+					vc.OpenPlayer("http://183.203.16.207:8108/videochat/api/liveUrl?myid=admin&uid=" + txtRTMPUrl.getText().toString());
 				}
 			});
 

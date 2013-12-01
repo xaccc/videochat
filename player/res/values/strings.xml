@@ -6,6 +6,6 @@
     <string name="hello_world">Hello world!</string>
     <string name="listen">收听</string>
     <string name="stop">停止</string>
-    <string name="rtmp_url">rtmp://183.203.16.207:8100/live/24c9e15e52afc47c225b757e7bee1f9d</string>
+    <string name="rtmp_url">user1</string>
 
 </resources>
