@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="project" default="all" basedir=".">
+	<description>
+		common build file
+	</description>
+    <presetdef name="javac">
+        <javac includeantruntime="false" />
+    </presetdef>
+
+	<!-- set global properties for this build -->
+	<property name="projectName" value="videochat_ms" />
+	<property name="version.num" value="1.0" />
+	<!-- <property name="runclass" value="com.mobile2.entity.Category"/> -->
+
+	<property name="src" location="src" />
+	<property name="lib" location="lib" />
+	<property name="build" location="web/WEB-INF/classes" />
+
+	<target name="prepare">
+		<!-- Create the time stamp -->
+		<tstamp />
+		<!-- Create the build directory structure used by compile -->
+		<mkdir dir="${build}" />
+		<mkdir dir="${build}/../lib" />
+	</target>
+
+	<target name="compile" depends="prepare" description="compile the source ">
+		<!-- Compile the java code from ${src} into ${build} -->
+		<javac srcdir="${src}" destdir="${build}" encoding="UTF-8" source="1.6" target="1.6" Debug="No" Verbose="No">
+			<include name="**/*.java" />
+			<classpath>
+				<pathelement path="${CLASSPATH}" />
+				<fileset dir="${lib}">
+					<include name="**/*.jar" />
+				</fileset>
+			</classpath>
+		</javac>
+		<copy todir="{build}/../lib">
+			<fileset dir="${lib}">
+				<include name="*" />
+			</fileset>
+		</copy>
+		<copy todir="${build}">
+			<fileset dir="${src}">
+				<include name="**/*.*" />
+				<exclude name="**/*.java" />
+			</fileset>
+		</copy>
+	</target>
+
+	<target name="clean" description="clean up">
+		<!-- Delete the ${build} and ${dist} directory trees -->
+		<delete dir="${build}" />
+		<delete dir="${build}/../lib" />
+		<delete file="build.num" />
+	</target>
+
+	<target name="all" description="">
+		<antcall target="clean" />
+		<antcall target="compile" />
+	</target>
+</project>

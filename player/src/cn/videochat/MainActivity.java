@@ -32,12 +32,6 @@ public class MainActivity extends Activity {
 			// 创建对象
 			vc = new VideoChat();
 			vc.Init();
-			vc.setOnEventCallback(new OnEventCallback() {
-				@Override
-				public void onEvent(int event) {
-					// 事件回调(保留)
-				}
-			});
 
 			// 创建视频窗口
 			mView = new NativeView(getApplication(), vc);
@@ -48,6 +42,7 @@ public class MainActivity extends Activity {
 			btnListen.setOnClickListener(new OnClickListener() {
 				@Override
 				public void onClick(View v) {
+					vc.ClosePlayer();
 					vc.OpenPlayer("http://183.203.16.207:8108/videochat/api/liveUrl?myid=admin&uid=" + txtRTMPUrl.getText().toString());
 				}
 			});

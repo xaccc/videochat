@@ -17,3 +17,8 @@ target/
 
 player/obj/
 player/gen/
+red5plugin/log/
+red5plugin/web/WEB-INF/classes/
+
+player_sample.tar.bz2
+VideoChatPlayer.apk
