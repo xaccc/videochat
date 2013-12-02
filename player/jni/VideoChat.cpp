@@ -59,21 +59,12 @@ void VideoChat::InitRender(int width, int height)
 
 int VideoChat::Init()
 {
-    Release();
-    
-    pSpeexCodec = new SpeexCodec();
-    pAudioOutput = new AudioOutput();
-    pH264Decodec = new H264Decodec();
-
     return 0;
 }
 
 void VideoChat::Release()
 {
-    SAFE_DELETE(pSpeexCodec);
-    SAFE_DELETE(pAudioOutput);
-    SAFE_DELETE(pH264Decodec);
-    SAFE_DELETE(pVideoRender);
+    StopPlay();
 }
 
 int VideoChat::Play(const char* url)
@@ -81,6 +72,10 @@ int VideoChat::Play(const char* url)
     if (m_playing) return -1;
     m_playing = true;
     
+    pSpeexCodec = new SpeexCodec();
+    pAudioOutput = new AudioOutput();
+    pH264Decodec = new H264Decodec();
+
     if (szUrl) delete[] szUrl;
     szUrl = new char[strlen(url) + 2];
     memset(szUrl, 0, strlen(url) + 2);
@@ -101,6 +96,11 @@ int VideoChat::StopPlay()
 
     m_playing = false;
     int iRet = pthread_join(thread_play, NULL);
+
+    SAFE_DELETE(pSpeexCodec);
+    SAFE_DELETE(pAudioOutput);
+    SAFE_DELETE(pH264Decodec);
+    SAFE_DELETE(pVideoRender);
 
     return iRet;
 }
@@ -233,10 +233,6 @@ void* VideoChat::_play(void* pVideoChat)
 
                     if (got_picture && pThis->pVideoRender)
                     {
-                        // pThis->pVideoRender->set_size(
-                            // pThis->pH264Decodec->getWidth(),
-                            // pThis->pH264Decodec->getHeight());
-                        //pThis->pVideoRender->ready2render();
                         pThis->pVideoRender->set_frame(
                             pThis->pH264Decodec->getFrame(),
                             pThis->pH264Decodec->getWidth(),
