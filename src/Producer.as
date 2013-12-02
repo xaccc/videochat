@@ -142,7 +142,7 @@ package {
                 if (cameraSettings == null)
                     cameraSettings = new H264VideoStreamSettings(); 
                     
-                cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_1_2);
+                cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_3_1);
                 nsOut.videoStreamSettings = cameraSettings;
                 
                 nsOut.attachAudio(mic);
@@ -169,20 +169,20 @@ package {
             Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
             cam.setMode(320,240,25);
-            cam.setQuality(0,85);
+            cam.setQuality(0,90);
         }
         
         private function setMic():void {
             mic = Microphone.getMicrophone();
             Security.showSettings(SecurityPanel.MICROPHONE);
             mic.codec = "Speex";
-            mic.encodeQuality = 9;
+            mic.encodeQuality = 8;
             mic.gain = 85;
             mic.rate = 11;
             mic.setSilenceLevel(0, -1);
-            mic.framesPerPacket = 1;
+            mic.framesPerPacket = 3;
             mic.setUseEchoSuppression(false);
-            mic.enableVAD = false;
+            mic.enableVAD = true;
         }
         
         private function setVideo():void {
