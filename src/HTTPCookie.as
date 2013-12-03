@@ -27,5 +27,10 @@ package
             return result;
         }
         
+        static public function getUID():String {
+            var cookies:Dictionary = getCookies();
+            return cookies['UID']?cookies['UID']:"";
+        }
+        
     }
 }

@@ -39,6 +39,7 @@ package {
         private var remote_app:String = "/videochat"
         
         private var uid:String;
+        private var myuid:String;
         
         private var api:ServiceAPI;
 
@@ -91,7 +92,8 @@ package {
                     nc.client = this;
                 }
                 
-                nc.connect(rtmpURL);
+                myuid = "UID="+HTTPCookie.getUID();
+                nc.connect(rtmpURL, myuid);
                 
             }
         }
@@ -150,15 +152,10 @@ package {
                 nsOut.publish(rtmpInstance, "live");
                 
                 established = true;
-            // } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
-                // // reconnect waitfor 1 second
-                // setTimeout(nc.connect, 1000, rtmpURL);
-            // } else if (established && event.info.code == "NetConnection.Connect.Closed") {
-                // // reconnect waitfor 1 second
-                // setTimeout(nc.connect, 1000, rtmpURL);
-            // } else if (established && event.info.code == "NetConnection.Connect.Failed") {
-                // // reconnect waitfor 1 second
-                // setTimeout(nc.connect, 1000, rtmpURL);
+            } else if (established && event.info.code == "NetConnection.Connect.Closed") {
+                nc.connect(rtmpURL, myuid);
+            } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
+            } else if (established && event.info.code == "NetConnection.Connect.Failed") {
             }
             
             Log.trace("NetStatus: ", event.info.code);
