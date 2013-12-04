@@ -80,8 +80,10 @@ package {
                               + "/" + response.Application;
                               
                     rtmpInstance = response.Session;
+                    Log.trace(rtmpURL);
                 } else {
                     throw new Error("服务通讯故障");
+                    Log.trace("服务通讯故障");
                 }
                     
 

@@ -10,7 +10,6 @@ bin-release/
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Flash Builder.
 
-
 *.swf
 
 target/
@@ -22,3 +21,5 @@ red5plugin/web/WEB-INF/classes/
 
 player_sample.tar.bz2
 VideoChatPlayer.apk
+
+service/videochat.war

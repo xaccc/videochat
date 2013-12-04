@@ -35,9 +35,10 @@
 				</fileset>
 			</classpath>
 		</javac>
-		<copy todir="{build}/../lib">
+		<copy todir="${build}/../lib">
 			<fileset dir="${lib}">
 				<include name="*" />
+				<exclude name="red5-server-1.0.jar" />
 			</fileset>
 		</copy>
 		<copy todir="${build}">
