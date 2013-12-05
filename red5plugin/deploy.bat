@@ -1,5 +1,6 @@
 @echo off
 
+call build.bat
 set base=D:\Software\Media\red5-server-1.0
 
 @echo 这是测试用的部署工具，默认部署路径为 %base%

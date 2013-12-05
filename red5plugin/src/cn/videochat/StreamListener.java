@@ -13,8 +13,14 @@ class StreamListener implements IStreamListener {
     private Logger log = Logger.getLogger(StreamListener.class);
 
     public void packetReceived(IBroadcastStream stream, IStreamPacket packet) {
-        // IoBuffer iobuf = packet.getData();
-        // log.info(String.format("packetReceived: Type=%d, Timestamp=%d, Position=%d", 
-            // (int)packet.getDataType(), packet.getTimestamp(), iobuf.position()));
+        IoBuffer iobuf = packet.getData();
+        try {
+            int limit = iobuf.limit(); // iobuf.buf();
+            log.info("IStreamPacket data size: " + limit);
+        } catch(Exception e) {
+            e.printStackTrace();
+        } finally {
+            iobuf = null;
+        }
     }
 }

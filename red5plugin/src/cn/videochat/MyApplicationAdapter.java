@@ -11,6 +11,7 @@ import org.red5.server.adapter.ApplicationAdapter;
 import org.red5.server.api.IConnection;
 import org.red5.server.api.scope.IScope;
 import org.red5.server.api.IClient;
+import org.red5.server.api.stream.IStreamListener;
 import org.red5.server.api.stream.ISubscriberStream;
 import org.red5.server.api.stream.IBroadcastStream;
 import org.red5.server.api.stream.IPlayItem;
@@ -35,14 +36,15 @@ class MyApplicationAdapter extends ApplicationAdapter {
     private Hashtable<String,String> properties = new Hashtable<String,String>();
     
     String apiHost = "localhost";
+    String apiPostLog = "/service/api/postlog";
     int    apiPort = 80;
-    String apiLogPath = "/service/api/postlog";
     
     private Logger log = Logger.getLogger(MyApplicationAdapter.class);
-    private StreamListener streamListener = new StreamListener();
     
-    ExecutorService threadpool = Executors.newFixedThreadPool(2);
-    Async async = Async.newInstance().use(threadpool);
+    ConcurrentHashMap<ClientBroadcastStream, AutoRecorder> recorderTaskList = new ConcurrentHashMap<ClientBroadcastStream, AutoRecorder>();
+    
+    ExecutorService httpLogThreadpool = Executors.newFixedThreadPool(2);
+    Async httpLogAsync = Async.newInstance().use(httpLogThreadpool);
 
     public MyApplicationAdapter() {
         super();
@@ -56,18 +58,20 @@ class MyApplicationAdapter extends ApplicationAdapter {
             log.info("Load Properties File: " + configurePath);
             pps.load(new FileInputStream(configurePath));
             for(String strKey : pps.stringPropertyNames()) {
-                properties.put(strKey, pps.getProperty(strKey));
+                properties.put(strKey, pps.getProperty(strKey).toString());
+                log.info("Property: " + strKey + " = " + pps.getProperty(strKey).toString());
             }
+
+            if (properties.containsKey("apiHost")) apiHost = properties.get("apiHost");
+            if (properties.containsKey("apiPort")) apiPort = new Integer(properties.get("apiPort"));
+            if (properties.containsKey("apiPostLog")) {
+                apiPostLog = properties.get("apiPostLog");
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         
-        if (properties.containsKey("apiHost")) apiHost = properties.get("apiHost");
-        if (properties.containsKey("apiPort")) apiPort = Integer.getInteger(properties.get("apiPort"));
-        if (properties.containsKey("apiPath")) {
-            apiLogPath = properties.get("apiPath") + "/postlog";
-        }
-
         this.registerStreamPlaybackSecurity(new StreamPlaybackSecurity());
         this.registerStreamPublishSecurity(new StreamPublishSecurity());
     }
@@ -89,6 +93,8 @@ class MyApplicationAdapter extends ApplicationAdapter {
         log.info("Stop");
         PostLog(new StringBuffer("type=server&event=stop"));
         super.stop(scope);
+        
+        httpLogThreadpool.shutdown();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,12 +111,12 @@ class MyApplicationAdapter extends ApplicationAdapter {
         query.append("&port=");
         query.append(conn.getRemotePort());
         
-        for(Object param : params) {
-            if (param.toString().length() > 0) {
-                query.append("&");
-                query.append(param.toString());
-            }
-        }
+        // for(Object param : params) {
+            // if (param.toString().length() > 0) {
+                // query.append("&");
+                // query.append(param.toString());
+            // }
+        // }
         
         PostLog(query);
         return super.connect(conn, scope, params);
@@ -156,7 +162,6 @@ class MyApplicationAdapter extends ApplicationAdapter {
 
     public void streamPublishStart(IBroadcastStream stream) {
         super.streamPublishStart(stream);
-        stream.addStreamListener(streamListener);
         
         StringBuffer query = new StringBuffer("type=stream&event=publishStart");
 
@@ -180,6 +185,10 @@ class MyApplicationAdapter extends ApplicationAdapter {
 
             query.append("&name=");
             query.append(broadcastStream.getPublishedName());
+
+            AutoRecorder task = new AutoRecorder(this, broadcastStream, properties);
+            recorderTaskList.put(broadcastStream, task);
+            stream.addStreamListener((IStreamListener)task);
         }
 
         PostLog(query);
@@ -195,6 +204,12 @@ class MyApplicationAdapter extends ApplicationAdapter {
             
             query.append("&name=");
             query.append(broadcastStream.getPublishedName());
+            
+            AutoRecorder task = recorderTaskList.remove(broadcastStream);
+            if (task != null) {
+                // task release;
+                task.release();
+            }
         }
         
         PostLog(query);
@@ -249,9 +264,9 @@ class MyApplicationAdapter extends ApplicationAdapter {
     
     public void PostLog(StringBuffer query) {
         try {
-            Request request = Request.Get(new URI("http", null, apiHost, apiPort, apiLogPath, 
+            Request request = Request.Get(new URI("http", null, apiHost, apiPort, apiPostLog, 
                 query.append("&timestamp=").append(System.currentTimeMillis()).toString(), null));
-            Future<Content> future = async.execute(request);
+            Future<Content> future = httpLogAsync.execute(request);
         } catch(Exception e) {
             e.printStackTrace();
         }

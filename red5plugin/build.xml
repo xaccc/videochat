@@ -26,7 +26,7 @@
 
 	<target name="compile" depends="prepare" description="compile the source ">
 		<!-- Compile the java code from ${src} into ${build} -->
-		<javac srcdir="${src}" destdir="${build}" encoding="UTF-8" source="1.6" target="1.6" Debug="No" Verbose="No">
+		<javac srcdir="${src}" destdir="${build}" encoding="UTF-8" source="1.6" target="1.6" Debug="Yes" Verbose="No">
 			<include name="**/*.java" />
 			<classpath>
 				<pathelement path="${CLASSPATH}" />
@@ -39,6 +39,8 @@
 			<fileset dir="${lib}">
 				<include name="*" />
 				<exclude name="red5-server-1.0.jar" />
+				<exclude name="mina-core-2.0.7.jar" />
+				<exclude name="log4j-over-slf4j-1.6.6.jar" />
 			</fileset>
 		</copy>
 		<copy todir="${build}">
