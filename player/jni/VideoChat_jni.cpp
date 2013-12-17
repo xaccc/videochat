@@ -11,121 +11,124 @@
 #include "VideoChat_OnEventCallback_jni.h"
 
 
-jobject g_jObject = NULL;
-VideoChat g_videochat;
+//
+//
+//
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    Init
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jobject jobj)
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jclass jobj)
 {
-    LOGI("Java_cn_videochat_VideoChat_Init");
-    g_jObject = env->NewGlobalRef(jobj);
-    g_videochat.Init();
+    VideoChat* pVideoChat = new VideoChat();
+    if (pVideoChat) {
+        pVideoChat->Init();
+        LOGI("pVideoChat->Init");
+        pVideoChat->m_jObject = env->NewGlobalRef(jobj);
+        LOGI("env->NewGlobalRef");
+        env->GetJavaVM((JavaVM**)&pVideoChat->m_jVM);
+        LOGI("env->GetJavaVM");
+    }
+    
+    return (jlong)pVideoChat;
 }
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    OpenPublisher
- * Signature: (Ljava/lang/String{})V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPublisher(JNIEnv *env, jobject jobj, jstring jRtmpUrl)
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jclass jobj, jlong handler)
 {
-    LOGI("Java_cn_videochat_VideoChat_OpenPublisher");
+    VideoChat* pVideoChat = (VideoChat*)handler;
+    
+    if (pVideoChat) {
+        pVideoChat->Release();
+        env->DeleteGlobalRef(pVideoChat->m_jObject);
+        //((JavaVM*)pVideoChat->m_jVM)->DestroyJavaVM();
+        delete pVideoChat;
+        pVideoChat = NULL;
+    }
 }
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    ClosePublisher
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePublisher(JNIEnv *env, jobject jobj)
+//
+// recoder
+//
+
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPublisher(JNIEnv *, jobject, jlong, jstring) {}
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePublisher(JNIEnv *, jobject, jlong, jboolean) {}
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePublisher(JNIEnv *, jobject, jlong) {}
+
+//
+// player
+//
+
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_SetVideoRender(JNIEnv *env, jclass jobj, jlong handler, jlong renderHandler)
 {
-    LOGI("Java_cn_videochat_VideoChat_ClosePublisher");
+    VideoChat* pVideoChat = (VideoChat*)handler;
+    
+    if (pVideoChat) {
+        pVideoChat->setVideoRender((VideoRender*)renderHandler);
+    }
 }
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    OpenPlayer
- * Signature: (Ljava/lang/String{})V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer(JNIEnv *env, jobject jobj, jstring jRtmpUrl)
+  
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer(JNIEnv *env, jclass jobj, jlong handler, jstring jRtmpUrl)
 {
-    LOGI("Java_cn_videochat_VideoChat_OpenPlayer");
-    const char* rtmpUrl = env->GetStringUTFChars(jRtmpUrl, NULL);
-    g_videochat.Play(rtmpUrl);
-    env->ReleaseStringUTFChars(jRtmpUrl, rtmpUrl);
+    VideoChat* pVideoChat = (VideoChat*)handler;
+    
+    if (pVideoChat) {
+        const char* rtmpUrl = env->GetStringUTFChars(jRtmpUrl, NULL);
+        pVideoChat->Play(rtmpUrl);
+        env->ReleaseStringUTFChars(jRtmpUrl, rtmpUrl);
+    }
 }
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    ClosePlayer
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer(JNIEnv *env, jobject jobj)
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePlayer(JNIEnv *env, jclass jobj, jlong handler, jboolean paused)
 {
-    LOGI("Java_cn_videochat_VideoChat_ClosePlayer");
-    g_videochat.StopPlay();
+    VideoChat* pVideoChat = (VideoChat*)handler;
+    
+    if (pVideoChat) {
+        pVideoChat->PausePlayer(paused);
+    }
 }
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    Release
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jobject jobj)
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer(JNIEnv *env, jclass jobj, jlong handler)
 {
-    LOGI("Java_cn_videochat_VideoChat_Release");
-    env->DeleteGlobalRef(g_jObject);
-    g_videochat.Release();
-}
-
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    InitRender
- * Signature: (II)V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_InitRender(JNIEnv *, jobject, jint jWidth, jint jHeight)
-{
-    LOGI("Java_cn_videochat_VideoChat_InitRender");
-    g_videochat.InitRender(jWidth,jHeight);
-}
-
-
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    RenderFrame
- * Signature: ()V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *, jobject)
-{
-    LOGI("Java_cn_videochat_VideoChat_RenderFrame");
-    g_videochat.RenderFrame();
+    VideoChat* pVideoChat = (VideoChat*)handler;
+    
+    if (pVideoChat) {
+        pVideoChat->StopPlay();
+    }
 }
 
 
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    PausePlayer
- * Signature: (Z)V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePlayer
-  (JNIEnv *, jobject, jboolean paused)
+//
+// Video Render Inferface
+//
+
+
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_CreateRender(JNIEnv *env, jclass jobj)
 {
-    g_videochat.PausePlayer(paused);
+    return (jlong)(new VideoRender());
 }
 
-
-
-
-/*
- * Class:     cn_videochat_VideoChat
- * Method:    PausePublisher
- * Signature: (Z)V
- */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePublisher
-  (JNIEnv *, jobject, jboolean)
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_SetRenderViewPort(JNIEnv *env, jclass jobj, jlong handler, jint jWidth, jint jHeight)
 {
+    VideoRender* pVideoRender = (VideoRender*)handler;
+    
+    if (pVideoRender) {
+        pVideoRender->setViewport(jWidth,jHeight);
+    }
+}
+
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *env, jclass jobj, jlong handler)
+{
+    VideoRender* pVideoRender = (VideoRender*)handler;
+    
+    if (pVideoRender) {
+        pVideoRender->renderFrame();
+    }
+}
+
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderRelease(JNIEnv *env, jclass jobj, jlong handler)
+{
+    VideoRender* pVideoRender = (VideoRender*)handler;
+    
+    if (pVideoRender) {
+        delete pVideoRender;
+        pVideoRender = NULL;
+    }
 }

@@ -6,10 +6,10 @@ class MediaService {
 
     String name
     
-    String scheme
+    String scheme = 'rtmp'
     String domain
-    int    port
-    String path
+    int    port = 1935
+    String path = 'videochat'
     
     Date dateCreated
     Date lastUpdated
@@ -27,5 +27,5 @@ class MediaService {
         id generator: 'uuid'
 	}
     
-    String toString() {"$name(${scheme}:://${domain}:${port}${path})"}
+    String toString() {"$name(${scheme}:://${domain}:${port}/${path})"}
 }

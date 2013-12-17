@@ -30,9 +30,10 @@ public:
     VideoRender();
     ~VideoRender();
 
-    void set_view(int width, int height);
-    void set_frame(AVFrame* frame, uint32_t width, uint32_t height);
-    void render_frame();
+    void setViewport(int width, int height);
+    void setFrame(AVFrame* frame, uint32_t width, uint32_t height);
+    void clearFrame();
+    void renderFrame();
     void pause(bool paused);
     
 private:
@@ -51,9 +52,6 @@ private:
     GLuint m_texVId;
     GLuint simpleProgram;
     
-    AVFrame* m_frame;
-    Mutex*   m_frame_lock;
-    
     Mutex      m_myPictureLock;
     AVPicture* m_myPicture;
     int        m_myPictureSize;
@@ -61,8 +59,6 @@ private:
     uint32_t m_width;
     uint32_t m_height;
 
-    int m_viewport_width;
-    int m_viewport_height;
     bool m_paused;
 };
 

@@ -16,6 +16,11 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+LOCAL_ARM_MODE  := arm
+
+#LOCAL_ARM_NEON  := true
+#LOCAL_CFLAGS    := -DHAVE_NEON=1
+
 LOCAL_MODULE    := vc
 LOCAL_SRC_FILES := VideoChat.cpp \
                    VideoChat_jni.cpp \
@@ -24,10 +29,15 @@ LOCAL_SRC_FILES := VideoChat.cpp \
                    VideoDecoder.cpp \
                    VideoRender.cpp \
                    json.c
+                   # \
+                   #yuv2rgb/yuv2rgb16tab.c \
+                   #yuv2rgb/yuv420rgb565c.c \
+                   #yuv2rgb/yuv420rgb565.S
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
 
+APP_CPPFLAGS := -S -frtti -fexceptions
 
 #LOCAL_STATIC_LIBRARIES += libOpenSLES libGLESv2 liblog libandroid libspeex libspeexdsp librtmp
 

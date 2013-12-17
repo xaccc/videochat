@@ -53,7 +53,7 @@ package
             
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            if (remote_host == "183.203.16.207") {
+            if (remote_host == "122.0.67.180") {
                 api.liveUrl(uid);
             }
         }

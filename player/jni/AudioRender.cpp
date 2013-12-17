@@ -1,6 +1,9 @@
 #include "AudioRender.h"
 
 
+#undef LOGI
+#define LOGI(...)
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -50,19 +53,18 @@ AudioOutput::AudioOutput()
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_PLAY, &bqPlayerPlay);
     // get the buffer queue interface
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_BUFFERQUEUE, &bqPlayerBufferQueue);
-    // register callback on the buffer queue
-    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, playerCallback, this);
-    // get the effect send interface
-    result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_EFFECTSEND, &bqPlayerEffectSend);
-    // get the volume interface
-    result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_VOLUME, &bqPlayerVolume);
     // set the player's state to playing
     result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
 }
 
 AudioOutput::~AudioOutput()
 {
+    pause(true);
+    
     (*bqPlayerObject)->Destroy(bqPlayerObject);
+    (*outputMixObject)->Destroy(outputMixObject);
+    (*engineObject)->Destroy(engineObject);
+    
     delete[] playerBuffer;
 }
 
@@ -79,7 +81,9 @@ void AudioOutput::pause(bool paused)
 
 int AudioOutput::play(short* data, int dataSize)
 {
-    if (dataSize > AUDIO_FRAMES_SIZE/5)
+    if (m_paused) return -1;
+    
+    if (dataSize > (AUDIO_FRAMES_SIZE >> 1))
     {
         // 立即render , 测试过，立即播放抖动很厉害，没法听，也是由于dataSize过小导致的
         (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, data, dataSize * sizeof(short));
@@ -87,9 +91,6 @@ int AudioOutput::play(short* data, int dataSize)
     } else {
         // 缓存buffer 1s
         int last = 0;
-        SLresult result;
-        
-        if (m_paused) return -1;
         
         while (dataSize > 0) {
             last = min(AUDIO_FRAMES_SIZE - playerBufferIndex, dataSize);
@@ -106,10 +107,4 @@ int AudioOutput::play(short* data, int dataSize)
         }
     }
 }
-
-void AudioOutput::playerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
-{
-    // AudioOutput* pThis = (AudioOutput*)context;
-}
-
 

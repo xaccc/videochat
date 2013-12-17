@@ -42,8 +42,7 @@ public:
 
     int Init();
     void Release();
-    void InitRender(int width, int height);
-    void RenderFrame() { if (pVideoRender) pVideoRender->render_frame(); }
+    void setVideoRender(VideoRender* _pVideoRender) { pVideoRender = _pVideoRender; }
 
     int Play(const char* szUrl);
     int StopPlay();
@@ -52,7 +51,8 @@ public:
 private:
     static void* _play(void* pVideoChat);
     static size_t convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nmemb, void *stream);
-
+    static bool get_rtmp_url(VideoChat* pThis);
+    
 private:
     SpeexCodec* pSpeexCodec;
     AudioOutput* pAudioOutput;
@@ -66,9 +66,15 @@ private:
 
     pthread_t thread_play;
     pthread_attr_t thread_attr;
+
+    Mutex handleLock;
     
     bool m_playing;
     bool m_paused;
+
+public:
+    JavaVM* m_jVM;
+    jobject m_jObject;
 };
 
 

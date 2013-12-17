@@ -33,6 +33,11 @@ extern "C" {
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
 
+#ifdef  _DEBUG
+#undef  LOGI
+#define LOGI(...)
+#endif
+
 #define SAFE_DELETE(x) if(x) {delete x; x=NULL;}
 
 #ifndef min
@@ -55,6 +60,8 @@ public:
     void Lock() const   { pthread_mutex_lock( &_mutex );       }
     void Unlock() const { pthread_mutex_unlock( &_mutex );     }
 
+    bool tryLock() const{ return 0 == pthread_mutex_trylock( &_mutex ); }
+    
 private:
     mutable pthread_mutex_t _mutex;
 };

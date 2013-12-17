@@ -61,7 +61,7 @@ package {
 
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            if (remote_host == "183.203.16.207") {
+            if (remote_host == "122.0.67.180") {
                 api.publishUrl(uid);
             }
         }
@@ -107,22 +107,24 @@ package {
             setVideo();
         
             // info text
+            /*
             var myformat:TextFormat = new TextFormat();
             myformat.size = 24;
             myformat.align="center";                
             myformat.font = "Wingdings";
             var fieldSpeed:TextField = new TextField();
-            fieldSpeed.x = 5;
-            fieldSpeed.y = 5;
+            fieldSpeed.x = 10;
+            fieldSpeed.y = 10;
             fieldSpeed.visible = true;
-            fieldSpeed.text = "本地视频";
-            fieldSpeed.textColor = 0x00FF00; 
+            fieldSpeed.text = "●";
+            fieldSpeed.textColor = 0xFF0000; 
             fieldSpeed.selectable = false;
             fieldSpeed.autoSize = TextFieldAutoSize.LEFT;
             fieldSpeed.setTextFormat(myformat);
             fieldSpeed.filters = [new DropShadowFilter()];
             fieldSpeed.filters[0].color = 0xFFFFFF
             addChild(fieldSpeed);
+            */
         }
         
         // bandwidth detection on the server
@@ -165,15 +167,15 @@ package {
         
         private function setCam():void {
             cam = Camera.getCamera();
-            Security.showSettings(SecurityPanel.CAMERA);
+            // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            cam.setMode(320,240,25);
-            cam.setQuality(0,90);
+            cam.setMode(320,240,15);
+            cam.setQuality(0,60);
         }
         
         private function setMic():void {
             mic = Microphone.getMicrophone();
-            Security.showSettings(SecurityPanel.MICROPHONE);
+            // Security.showSettings(SecurityPanel.MICROPHONE);
             mic.codec = "Speex";
             mic.encodeQuality = 8;
             mic.gain = 85;

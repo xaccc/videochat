@@ -264,6 +264,7 @@ class MyApplicationAdapter extends ApplicationAdapter {
     
     public void PostLog(StringBuffer query) {
         try {
+            log.info(query.toString());
             Request request = Request.Get(new URI("http", null, apiHost, apiPort, apiPostLog, 
                 query.append("&timestamp=").append(System.currentTimeMillis()).toString(), null));
             Future<Content> future = httpLogAsync.execute(request);

@@ -10,82 +10,106 @@ extern "C" {
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    Init
- * Signature: ()V
+ * Signature: ()J
  */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Init
-  (JNIEnv *, jobject);
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_Init
+  (JNIEnv *, jclass);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    Release
- * Signature: ()V
+ * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    SetVideoRender
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_SetVideoRender
+  (JNIEnv *, jclass, jlong, jlong);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    OpenPublisher
- * Signature: (Ljava/lang/String;)V
+ * Signature: (JLjava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPublisher
-  (JNIEnv *, jobject, jstring);
+  (JNIEnv *, jclass, jlong, jstring);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    PausePublisher
- * Signature: (Z)V
+ * Signature: (JZ)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePublisher
-  (JNIEnv *, jobject, jboolean);
+  (JNIEnv *, jclass, jlong, jboolean);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    ClosePublisher
- * Signature: ()V
+ * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePublisher
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    OpenPlayer
- * Signature: (Ljava/lang/String;)V
+ * Signature: (JLjava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_OpenPlayer
-  (JNIEnv *, jobject, jstring);
+  (JNIEnv *, jclass, jlong, jstring);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    PausePlayer
- * Signature: (Z)V
+ * Signature: (JZ)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_PausePlayer
-  (JNIEnv *, jobject, jboolean);
+  (JNIEnv *, jclass, jlong, jboolean);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    ClosePlayer
- * Signature: ()V
+ * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_ClosePlayer
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     cn_videochat_VideoChat
- * Method:    InitRender
- * Signature: (II)V
+ * Method:    CreateRender
+ * Signature: ()J
  */
-JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_InitRender
-  (JNIEnv *, jobject, jint, jint);
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_CreateRender
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    SetRenderViewPort
+ * Signature: (JII)J
+ */
+JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_SetRenderViewPort
+  (JNIEnv *, jclass, jlong, jint, jint);
 
 /*
  * Class:     cn_videochat_VideoChat
  * Method:    RenderFrame
- * Signature: ()V
+ * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame
-  (JNIEnv *, jobject);
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     cn_videochat_VideoChat
+ * Method:    RenderRelease
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderRelease
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

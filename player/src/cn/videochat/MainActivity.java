@@ -1,12 +1,6 @@
 package cn.videochat;
 
-import cn.videochat.VideoChat.OnEventCallback;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
-import android.content.Context;
-import android.content.pm.ConfigurationInfo;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
@@ -16,58 +10,114 @@ import android.widget.Button;
 import android.widget.EditText;
 
 public class MainActivity extends Activity {
-	VideoChat vc;
-	Button btnListen, btnStop;
+	VideoChat vc = null;
+	VideoChat.View mView = null;
+
+	Button btnPlay, btnStop;
 	EditText txtRTMPUrl;
-	NativeView mView;
+	EditText txtLog;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
 		setContentView(R.layout.activity_main);
+
+		// controls
 		txtRTMPUrl = (EditText) findViewById(R.id.editText1);
+		txtLog = (EditText) findViewById(R.id.editText2);
+		txtRTMPUrl.setText("user123");
+		btnPlay = (Button) findViewById(R.id.button1);
+		btnStop = (Button) findViewById(R.id.button2);
+		btnStop.setVisibility(View.INVISIBLE); // default invisible stop
 
-		if (IsSupportOpenGLSE2()) {
-			// ´´½¨¶ÔÏó
-			vc = new VideoChat();
-			vc.Init();
+		mView = new VideoChat.View(getApplication());
+		addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT, 480));
 
-			// ´´½¨ÊÓÆµ´°¿Ú
-			mView = new NativeView(getApplication(), vc);
-			this.addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT, 480));
+		txtLog.setText("fuck,I'm not a empty!!!");
+		// Play
+		btnPlay.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// Create VideoChat Instance
+				vc = new VideoChat();
+				vc.addBufferingUpdateListener(new VideoChat.BufferingUpdateListener() {
+					@Override
+					public void onBufferingUpdate(VideoChat player, int bufferingProgress) {
+						// TODO Auto-generated method stub
+					}
+					@Override
+					public void onBufferingComplete(VideoChat player) {
+						// TODO Auto-generated method stub
+						txtLog.post(new Runnable(){
+							@Override
+							public void run() {
+								// TODO Auto-generated method stub
+								int maxlength = Math.min(100, txtLog.getText().length()-1);
+								txtLog.setText("ç¼“å†²å®Œæˆï¼Œå¼€å§‹æ’­æ”¾..." + "\n" + txtLog.getText().subSequence(0, maxlength));
+							}
+						});
+					}
+					@Override
+					public void onBufferingBegin(VideoChat player) {
+						// TODO Auto-generated method stub
+						txtLog.post(new Runnable(){
+							@Override
+							public void run() {
+								// TODO Auto-generated method stub
+								int maxlength = Math.min(100, txtLog.getText().length()-1);
+								txtLog.setText("å¼€å§‹ç¼“å†²...\n" + txtLog.getText().subSequence(0, maxlength));
+							}
+						});
+					}
+				});
+				vc.addCompletionListener(new VideoChat.CompletionListener() {
+					@Override
+					public void onCompletionListener(VideoChat player) {
+						// TODO Auto-generated method stub
+						txtLog.post(new Runnable(){
+							@Override
+							public void run() {
+								// TODO Auto-generated method stub
+								int maxlength = Math.min(100, txtLog.getText().length()-1);
+								txtLog.setText("æ’­æ”¾å®Œæˆï¼\n" + txtLog.getText().subSequence(0, maxlength));
+							}
+						});
+					}
+				});
+				vc.addErrorListener(new VideoChat.ErrorListener() {
+					@Override
+					public boolean onError(VideoChat player, int what, int extra) {
+						// TODO Auto-generated method stub
+						txtLog.post(new Runnable(){
+							@Override
+							public void run() {
+								// TODO Auto-generated method stub
+								int maxlength = Math.min(100, txtLog.getText().length()-1);
+								txtLog.setText("æ’­æ”¾å™¨é”™è¯¯\n" + txtLog.getText().subSequence(0, maxlength));
+							}
+						});
+						return false;
+					}
+				});
+				vc.setRender(mView);
+				vc.setDataSource("admin", txtRTMPUrl.getText().toString());
+				vc.play();
+				btnPlay.setVisibility(View.INVISIBLE);
+				btnStop.setVisibility(View.VISIBLE);
+			}
+		});
 
-			// ²¥·Å
-			btnListen = (Button) findViewById(R.id.button1);
-			btnListen.setOnClickListener(new OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					vc.ClosePlayer();
-					vc.OpenPlayer("http://183.203.16.207:8108/videochat/api/liveUrl?myid=admin&uid=" + txtRTMPUrl.getText().toString());
-				}
-			});
-
-			// Í£Ö¹
-			btnStop = (Button) findViewById(R.id.button2);
-			btnStop.setOnClickListener(new OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					vc.ClosePlayer();
-				}
-			});
-		} else {
-	        Builder b = new AlertDialog.Builder(null);
-	        b.setTitle(getString(R.string.app_name));
-	        b.setMessage("ÄãµÄÉè±¸²»Ö§³ÖOpenGL£¬ÎÞ·¨¹Û¿´ÊÓÆµ£¡").show();		
-		}
-	}
-
-	public boolean IsSupportOpenGLSE2() {
-		ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-		ConfigurationInfo configurationInfo = activityManager
-				.getDeviceConfigurationInfo();
-
-		return configurationInfo.reqGlEsVersion >= 0x20000;
+		// Stop
+		btnStop.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				vc.release();
+				vc = null;
+				btnPlay.setVisibility(View.VISIBLE);
+				btnStop.setVisibility(View.INVISIBLE);
+			}
+		});
 	}
 
 	@Override
@@ -79,7 +129,11 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onDestroy() {
+		if (vc != null) {
+			vc.release();
+			vc = null;
+		}
 		super.onDestroy();
-
 	}
+	
 }

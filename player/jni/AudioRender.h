@@ -26,9 +26,6 @@ public:
     void pause(bool paused);
 
 private:
-    static void playerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
-
-private:
     SLObjectItf engineObject;
     SLEngineItf engineEngine;
 
@@ -37,9 +34,6 @@ private:
 
     SLPlayItf bqPlayerPlay;
     SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
-    SLEffectSendItf bqPlayerEffectSend;
-    SLMuteSoloItf bqPlayerMuteSolo;
-    SLVolumeItf bqPlayerVolume;
 
     // audio buffer
     short* playerBuffer;

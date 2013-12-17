@@ -1,7 +1,8 @@
 #include "VideoDecoder.h"
 #include <librtmp/rtmp.h>
 
-
+#undef LOGI
+#define LOGI(...)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -51,7 +52,7 @@ static void log_callback(void* ptr, int level,const char* fmt,va_list vl)
 }
 
 H264Decodec::H264Decodec()
-    : lengthSizeMinusOne(0), dec_buffer(NULL), dec_buffer_size(0)
+    : lengthSizeMinusOne(0), h264stream_buffer(NULL), h264stream_buffer_size(0)
 {
     av_log_set_callback(log_callback);
     avcodec_register_all();
@@ -59,50 +60,28 @@ H264Decodec::H264Decodec()
     _codec = avcodec_find_decoder(CODEC_ID_H264);
     codec_context = avcodec_alloc_context3(_codec);
 
-    codec_context->width  = 352;
-    codec_context->height = 288;
-    codec_context->pix_fmt = PIX_FMT_YUV420P;
+    // codec_context->width  = 320;
+    // codec_context->height = 240;
+    // codec_context->pix_fmt = PIX_FMT_YUV420P;
 
     avcodec_open2(codec_context, _codec, NULL);
-
-    picture = avcodec_alloc_frame();
-
-
-    // output debug data
-#ifdef DEBUG
-    decoder_fd = fopen("/sdcard/video_data.264", "wb");
-
-    if (!decoder_fd) {
-        LOGI("ERROR: create debug decode video file failed!!!");
-    }
-#endif
 }
 
 H264Decodec::~H264Decodec()
 {
-#ifdef DEBUG
-    if (decoder_fd)
-        fclose(decoder_fd);
-#endif
-
     if(codec_context)
     {
         avcodec_close(codec_context);
+        av_free(codec_context);
         codec_context = NULL;
     }
 
-    if(picture)
-    {
-        av_frame_free(&picture);
-        picture = NULL;
-    }
-
-    if (dec_buffer) {
-        delete[] dec_buffer;
+    if (h264stream_buffer) {
+        delete[] h264stream_buffer;
     }
 }
 
-int H264Decodec::decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_picture)
+int H264Decodec::decode(uint8_t* rtmp_video_buf, uint32_t buf_size, AVFrame* picture, int* got_picture)
 {
     // VideoTagHeader (5 bytes)
     uint8_t frame_type = (rtmp_video_buf[0] >> 4) & 0x0f;
@@ -112,22 +91,20 @@ int H264Decodec::decode(uint8_t* rtmp_video_buf, uint32_t buf_size, int* got_pic
     int32_t cts = (ts+0xff800000)^0xff800000;
 
     LOGI( "AVC/DEC: frame_type=%d, codec_id=%d, packet_type=%d, packet_size=%d\n", frame_type, codec_id, packet_type, buf_size);
-    //DumpBuffer(rtmp_video_buf, buf_size);
 
-    AutoLock lock_frame(_picture_lock);
     if (packet_type == 0) /* Sequence header */
     {
-        return decodeSequenceHeader(rtmp_video_buf + 5, buf_size - 5, got_picture);
+        return decodeSequenceHeader(rtmp_video_buf + 5, buf_size - 5, picture, got_picture);
     }
     else if (packet_type == 1) /* NALU */
     {
-        return decodeNALU(rtmp_video_buf + 5, buf_size - 5, got_picture);
+        return decodeNALU(rtmp_video_buf + 5, buf_size - 5, picture, got_picture);
     }
 
     return -1;
 }
 
-int H264Decodec::decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* got_picture)
+int H264Decodec::decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, AVFrame* picture, int* got_picture)
 {
     uint32_t out_size = 0;
     uint32_t consumed_bytes = 4; // skip configurationVersion/AVCProfileIndication/profile_compatibility/AVCLevelIndication
@@ -170,16 +147,16 @@ int H264Decodec::decodeSequenceHeader(uint8_t* buffer, uint32_t buf_size, int* g
 
     final_decode_header(
         sequenceParameterSet, sequenceParameterSetLength,
-        pictureParameterSet, pictureParameterSetLength, got_picture);
+        pictureParameterSet, pictureParameterSetLength, picture, got_picture);
 }
 
-int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture)
+int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, AVFrame* picture, int* got_picture)
 {
     // NALU length                  4 bytes (lengthSizeMinusOne!!!!!)
     // NALU data                    = NALU length
     uint32_t consumed_bytes = 0;
     while(consumed_bytes < buf_size) {
-        int nalu_size = 4;
+        int nalu_size = 4; // default 4 bytes
 
         switch(lengthSizeMinusOne) {
         case 1: nalu_size = buffer[consumed_bytes];break;
@@ -191,72 +168,57 @@ int H264Decodec::decodeNALU(uint8_t* buffer, uint32_t buf_size, int* got_picture
 
         LOGI("[H264Decodec::decodeNALU] NALU-Length = %d, NALU-Type: (%d) %s\n", nalu_size, buffer[consumed_bytes]&0x1f, get_nalu_type_name(buffer[consumed_bytes]));
 
-        final_decode(buffer + consumed_bytes, nalu_size, got_picture);
+        final_decode(buffer + consumed_bytes, nalu_size, picture, got_picture);
 
-        if (*got_picture > 0) {
-            LOGI("[H264Decodec::decodeNALU] got-picture, size: %dx%d, p1linesize=%d, p2linesize=%d, p3linesize=%d",
-                codec_context->width, codec_context->height,
-                picture->linesize[0], picture->linesize[1], picture->linesize[2]);
-        }
         consumed_bytes += nalu_size;
     }
 }
 
 int H264Decodec::final_decode_header(
     uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength,
-    uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, int* got_picture) {
+    uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, AVFrame* picture, int* got_picture) {
 
     AVPacket packet = {0};
     int final_size = sequenceParameterSetLength + pictureParameterSetLength + 8;
 
-    while (final_size > dec_buffer_size) {
-        dec_buffer_size += 1024*10; // up 10k
-        delete[] dec_buffer;
-        dec_buffer = new uint8_t[dec_buffer_size];
+    while (final_size > h264stream_buffer_size) {
+        h264stream_buffer_size += 1024*10; // up 10k
+        delete[] h264stream_buffer;
+        h264stream_buffer = new uint8_t[h264stream_buffer_size];
     }
 
-    dec_buffer[0] = 0; dec_buffer[sequenceParameterSetLength + 4 + 0] = 0;
-    dec_buffer[1] = 0; dec_buffer[sequenceParameterSetLength + 4 + 1] = 0;
-    dec_buffer[2] = 0; dec_buffer[sequenceParameterSetLength + 4 + 2] = 0;
-    dec_buffer[3] = 1; dec_buffer[sequenceParameterSetLength + 4 + 3] = 1;
-    memcpy(dec_buffer + 4, sequenceParameterSet, sequenceParameterSetLength);
-    memcpy(dec_buffer + sequenceParameterSetLength + 8, pictureParameterSet, pictureParameterSetLength);
-
-#ifdef DEBUG
-    fwrite(dec_buffer, 1, final_size, decoder_fd);
-    fflush(decoder_fd);
-#endif
+    h264stream_buffer[0] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 0] = 0;
+    h264stream_buffer[1] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 1] = 0;
+    h264stream_buffer[2] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 2] = 0;
+    h264stream_buffer[3] = 1; h264stream_buffer[sequenceParameterSetLength + 4 + 3] = 1;
+    memcpy(h264stream_buffer + 4, sequenceParameterSet, sequenceParameterSetLength);
+    memcpy(h264stream_buffer + sequenceParameterSetLength + 8, pictureParameterSet, pictureParameterSetLength);
 
     av_init_packet(&packet);
-    av_packet_from_data(&packet, dec_buffer, final_size);
+    av_packet_from_data(&packet, h264stream_buffer, final_size);
 
     return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
 }
 
-int H264Decodec::final_decode(uint8_t* buffer, uint32_t buf_size, int* got_picture) {
+int H264Decodec::final_decode(uint8_t* buffer, uint32_t buf_size, AVFrame* picture, int* got_picture) {
 
     AVPacket packet = {0};
     int final_size = buf_size + 4;
 
-    while (final_size > dec_buffer_size) {
-        dec_buffer_size += 1024*10; // up 10k
-        delete[] dec_buffer;
-        dec_buffer = new uint8_t[dec_buffer_size];
+    while (final_size > h264stream_buffer_size) {
+        h264stream_buffer_size += 1024*10; // up 10k
+        delete[] h264stream_buffer;
+        h264stream_buffer = new uint8_t[h264stream_buffer_size];
     }
 
-    dec_buffer[0] = 0;
-    dec_buffer[1] = 0;
-    dec_buffer[2] = 0;
-    dec_buffer[3] = 1;
-    memcpy(dec_buffer + 4, buffer, buf_size);
-
-#ifdef DEBUG
-    fwrite(dec_buffer, 1, final_size, decoder_fd);
-    fflush(decoder_fd);
-#endif
+    h264stream_buffer[0] = 0;
+    h264stream_buffer[1] = 0;
+    h264stream_buffer[2] = 0;
+    h264stream_buffer[3] = 1;
+    memcpy(h264stream_buffer + 4, buffer, buf_size);
 
     av_init_packet(&packet);
-    av_packet_from_data(&packet, dec_buffer, final_size);
+    av_packet_from_data(&packet, h264stream_buffer, final_size);
 
     return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
 }

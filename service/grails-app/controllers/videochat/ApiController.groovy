@@ -1,8 +1,15 @@
 package videochat
 
-class ApiController {
+import java.util.*;
+import java.net.URI;
+import java.util.concurrent.*;
 
-    def postLogService
+import org.apache.http.client.fluent.Async;
+import org.apache.http.client.fluent.Content;
+import org.apache.http.client.fluent.Request;
+
+
+class ApiController {
 
     def index() {
         render(contentType: "application/json") {
@@ -109,10 +116,71 @@ class ApiController {
     //
     // 记录
     //
-    def postlog() {
-        postLogService.postLog(params);
+    def postLog() {
+        //
+        def tp = params['type']
+        def ev = params['event']
+        def ts = params['timestamp']
+        def sn = params['name']
+        
+        if(tp == 'stream') {
+            switch(ev) {
+            case 'broadcastStart':
+                def online = Online.findBySessionId(sn?:'')
+                def uid = online?online.uid:''
+                _postLog(new StringBuffer('op=hostLive&room_id=').append(uid).append('&timestamp=').append(ts).append('&Version=video'));
+                break;
+            case 'broadcastClose':
+                def online = Online.findBySessionId(sn?:'')
+                if (!online) {
+                    render(status: 404,contentType: "application/json") {
+                        result = 'Session Don\'t Exists!'
+                    }
+                    return false;
+                }
+
+                def uid = online?online.uid:''
+                online?.delete(flush:true);
+                _postLog(new StringBuffer('op=hostOffLive&room_id=').append(uid).append('&timestamp=').append(ts).append('&Version=video'));
+                break;
+                
+            case 'backup':
+                def flvid = params['flvid']; // 文件ID
+                def first = params['first']; // 是否上麦第一次备份
+                def online = Online.findBySessionId(sn?:'')
+                
+                if (!online) {
+                    render(status: 404,contentType: "application/json") {
+                        result = 'Session Don\'t Exists!'
+                    }
+                    return false;
+                }
+                def mediaService = MediaService.get(online?online.mediaServiceId:'')
+                new MediaBackup(
+                    uid: online?online.uid:'-',
+                    domain: mediaService?mediaService.domain:'-',
+                    sessionId: online?online.sessionId:'-',
+                    flvid: flvid,
+                    first: first.toBoolean(),
+                    backupDate: new Date(ts.toLong())
+                    ).save(flush:true);
+                break;
+            }
+        }
+        
         render(contentType: "application/json") {
-            Return = "OK"
+            result = "OK"
         }
     }
+
+    private void _postLog(StringBuffer query) {
+        try {
+            Request request = Request.Get(new URI("http", null, logHost, logPort, logLogPath, 
+                query.toString(), null));
+            Future<Content> future = async.execute(request);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
 }
