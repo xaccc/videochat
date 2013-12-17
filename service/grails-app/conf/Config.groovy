@@ -94,3 +94,9 @@ log4j = {
            'org.hibernate',
            'net.sf.ehcache.hibernate'
 }
+
+postLog {
+    Host = '127.0.0.1'
+    Port = 80
+    Path = '/log/post2bis'
+}

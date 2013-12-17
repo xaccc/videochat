@@ -173,9 +173,15 @@ class ApiController {
         }
     }
 
+    private static ExecutorService threadpool = Executors.newFixedThreadPool(2);
+    private static Async async = Async.newInstance().use(threadpool);
+    
     private void _postLog(StringBuffer query) {
         try {
-            Request request = Request.Get(new URI("http", null, logHost, logPort, logLogPath, 
+            Request request = Request.Get(new URI("http", null, 
+                grailsApplication.config.postLog.Host, 
+                grailsApplication.config.postLog.Port, 
+                 grailsApplication.config.postLog.Path, 
                 query.toString(), null));
             Future<Content> future = async.execute(request);
         } catch(Exception e) {
