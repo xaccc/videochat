@@ -31,7 +31,7 @@
 		<g:message code="mediaService.port.label" default="Port" />
 		<span class="required-indicator">*</span>
 	</label>
-	<g:field name="port" type="number" min="1" max="65535" format="0" value="${mediaServiceInstance.port}" required=""/>
+	<g:field name="port" type="number" min="1" max="65535" value="${mediaServiceInstance.port}" required=""/>
 </div>
 
 <div class="fieldcontain ${hasErrors(bean: mediaServiceInstance, field: 'path', 'error')} required">
@@ -40,5 +40,13 @@
 		<span class="required-indicator">*</span>
 	</label>
 	<g:textArea name="path" cols="40" rows="5" maxlength="255" required="" value="${mediaServiceInstance?.path}"/>
+</div>
+
+<div class="fieldcontain ${hasErrors(bean: mediaServiceInstance, field: 'enabled', 'error')} ">
+	<label for="enabled">
+		<g:message code="mediaService.enabled.label" default="Enabled" />
+		
+	</label>
+	<g:checkBox name="enabled" value="${mediaServiceInstance?.enabled}" />
 </div>
 

@@ -14,6 +14,7 @@
 				<li><g:link class="list" action="list" controller="mediaService"><g:message code="default.list.label" args="[message(code: 'mediaService.label', default: 'Services')]" /></g:link></li>
 				<li><g:link class="list" action="list" controller="mediaBackup"><g:message code="default.list.label" args="[message(code: 'mediaBackup.label', default: 'Backups')]" /></g:link></li>
 				<li><g:link class="list" action="list" controller="online"><g:message code="default.list.label" args="[message(code: 'online.label', default: 'Onlines')]" /></g:link></li>
+				<li><g:link class="list" action="list" controller="mediaEvent"><g:message code="default.list.label" args="[message(code: 'mediaEvent.label', default: 'Media Event')]" /></g:link></li>
 				<li><g:link class="create" action="create"><g:message code="default.new.label" args="[entityName]" /></g:link></li>
 			</ul>
 		</div>
@@ -36,7 +37,7 @@
 					
 						<g:sortableColumn property="path" title="${message(code: 'mediaService.path.label', default: 'Path')}" />
 					
-						<g:sortableColumn property="dateCreated" title="${message(code: 'mediaService.dateCreated.label', default: 'Date Created')}" />
+						<g:sortableColumn property="enabled" title="${message(code: 'mediaService.enabled.label', default: 'Enabled')}" />
 					
 					</tr>
 				</thead>
@@ -50,11 +51,11 @@
 					
 						<td>${fieldValue(bean: mediaServiceInstance, field: "domain")}</td>
 					
-						<td>${fieldValue(bean: mediaServiceInstance, field: "port")}</td>
+						<td>${mediaServiceInstance?.port}</td>
 					
 						<td>${fieldValue(bean: mediaServiceInstance, field: "path")}</td>
 					
-						<td><g:formatDate date="${mediaServiceInstance.dateCreated}" /></td>
+						<td><g:formatBoolean boolean="${mediaServiceInstance.enabled}" /></td>
 					
 					</tr>
 				</g:each>

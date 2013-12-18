@@ -55,7 +55,7 @@
 				<li class="fieldcontain">
 					<span id="port-label" class="property-label"><g:message code="mediaService.port.label" default="Port" /></span>
 					
-						<span class="property-value" aria-labelledby="port-label">${mediaServiceInstance.port}</span>
+						<span class="property-value" aria-labelledby="port-label">${mediaServiceInstance?.port}</span>
 					
 				</li>
 				</g:if>
@@ -65,6 +65,15 @@
 					<span id="path-label" class="property-label"><g:message code="mediaService.path.label" default="Path" /></span>
 					
 						<span class="property-value" aria-labelledby="path-label"><g:fieldValue bean="${mediaServiceInstance}" field="path"/></span>
+					
+				</li>
+				</g:if>
+			
+				<g:if test="${mediaServiceInstance?.enabled}">
+				<li class="fieldcontain">
+					<span id="enabled-label" class="property-label"><g:message code="mediaService.enabled.label" default="Enabled" /></span>
+					
+						<span class="property-value" aria-labelledby="enabled-label"><g:formatBoolean boolean="${mediaServiceInstance?.enabled}" /></span>
 					
 				</li>
 				</g:if>

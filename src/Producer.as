@@ -169,8 +169,8 @@ package {
             cam = Camera.getCamera();
             // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            cam.setMode(320,240,15);
-            cam.setQuality(0,60);
+            cam.setMode(320,240,12);
+            cam.setQuality(0,50);
         }
         
         private function setMic():void {
@@ -192,6 +192,7 @@ package {
             
             if (vidLocal == null)
                 vidLocal = new Video(w,h);
+            vidLocal.smoothing = true;
             vidLocal.x = 0;
             vidLocal.y = (stage.stageHeight - h) / 2;
             vidLocal.attachCamera(cam);

@@ -3,7 +3,6 @@ package videochat
 class Online {
     
     String id
-
     String uid
     
     String mediaServiceId

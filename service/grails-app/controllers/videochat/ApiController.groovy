@@ -17,52 +17,37 @@ class ApiController {
         }
     }
     
-    // 需要实现的接口：
-    // 1、为当前用户分配一个直播地址。(使用Cookie来区别当前用户，Cookie名为"UID")
-    // 2、获取指定用户的直播地址。
-    // 3、获取指定用户是否正在直播。
-
     //
     // 为用户分配一个直播服务器
     //
     def publishUrl(String uid) {
         def online = Online.findByUid(uid);
+    
+        // apply mediaService
+        def mediaServicesCount = MediaService.countByEnabled(true);
+        def mediaServicesOffset = mediaServicesCount > 1 ? (int)(Math.abs(new Random().nextInt())%mediaServicesCount) : 0;
+        def mediaServices = mediaServicesCount > 0 ? MediaService.findAllByEnabled(true, [offset:mediaServicesOffset, max:1])
+                                                   : [];
         
-        if (!online) {
-            // apply mediaService
-            def mediaServicesCount = MediaService.count();
-            def mediaServicesOffset = mediaServicesCount > 1 ? new Random().nextInt(mediaServicesCount-1) : 0;
-            def mediaServices = mediaServicesCount > 0 ? MediaService.list(offset:mediaServicesOffset, max:1)
-                                                       : [];
+        println "uid=$uid, mediaServicesCount=$mediaServicesCount, Random=${Math.abs(new Random().nextInt())}"
+        if (mediaServices.size() > 0) {
+            def sessionId = uid.toLowerCase() + '_' + Long.toHexString(System.nanoTime()).toLowerCase();
+            def server = mediaServices[0]
             
-            if (mediaServices.size() > 0) {
-                def sessionId = uid.toLowerCase() + '_' + Long.toHexString(System.nanoTime()).toLowerCase();
-                def server = mediaServices[0]
+            if (online) {
+                // 存在上线记录，更新服务器
+                online.mediaServiceId = server.id
+                online.sessionId = sessionId // 更新会话ID
+            } else {
+                // 未上线，分配会话服务器
                 online = new Online(
                                 uid: uid, 
                                 mediaServiceId: server.id, 
                                 sessionId: sessionId);
-                
-                online.save(flush:true);
-
-                render(contentType: "application/json") {
-                    Method = "publishUrl"
-                    UID = uid
-                    Host = server.domain        // 183.203.16.207
-                    Port = server.port          // 8100
-                    Application = server.path   // live
-                    Session = online.sessionId  // uid.encodeAsMD5()
-                }
-                
-            } else {
-                // havn't media server
-                render(contentType: "application/json") {
-                    ERROR = "没有找到任何可分配的媒体服务器"
-                }
             }
-        } else {
-            // online
-            def server = MediaService.get(online.mediaServiceId);
+            
+            online.save(flush:true);
+
             render(contentType: "application/json") {
                 Method = "publishUrl"
                 UID = uid
@@ -70,6 +55,12 @@ class ApiController {
                 Port = server.port          // 8100
                 Application = server.path   // live
                 Session = online.sessionId  // uid.encodeAsMD5()
+            }
+            
+        } else {
+            // havn't media server
+            render(contentType: "application/json") {
+                ERROR = "没有找到任何可分配的流服务器"
             }
         }
     }
@@ -96,6 +87,8 @@ class ApiController {
         } else {
             // offline
             render(contentType: "application/json") {
+                Method = "liveUrl"
+                UID = uid
                 ERROR = "未进行直播"
             }
         }
@@ -114,7 +107,33 @@ class ApiController {
     }
     
     //
-    // 记录
+    // 获取用户直播录像
+    //
+    def recordLog(String uid) {
+        params.login = params.login?params.login.toBoolean():true
+        params.max = Math.max(100, params.max?params.max.toLong():10)
+        def records = []
+        
+        records = params.login ? MediaBackup.findAllByFirstAndUid(true, uid, params)
+                               : MediaBackup.findAllByUid(uid, params)
+        
+        render(contentType: "application/json") {
+            Method = "recordLog"
+            UID = uid
+            Records = records.collect{rec -> [
+                    'UUID': rec.id,
+                    'IP': rec.domain,
+                    'SID': rec.sessionId,
+                    'FID': rec.flvid,
+                    'Login': rec.first,
+                    'Date': rec.backupDate
+                    ]}
+        }
+    }
+    
+
+    //
+    // 处理Log
     //
     def postLog() {
         //
@@ -127,9 +146,21 @@ class ApiController {
             switch(ev) {
             case 'broadcastStart':
                 def online = Online.findBySessionId(sn?:'')
-                def uid = online?online.uid:''
-                _postLog(new StringBuffer('op=hostLive&room_id=').append(uid).append('&timestamp=').append(ts).append('&Version=video'));
+                if (!online) {
+                    render(status: 404,contentType: "application/json") {
+                        result = 'Session Don\'t Exists!'
+                    }
+                    return false;
+                }
+
+                _postLog(new StringBuffer('op=hostLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
+                
+                new MediaEvent(uid: online.uid, 
+                               sessionId: online.sessionId,
+                               mediaServiceId: online.mediaServiceId,
+                               dateLive: new Date(ts.toLong())).save(flush:true)
                 break;
+
             case 'broadcastClose':
                 def online = Online.findBySessionId(sn?:'')
                 if (!online) {
@@ -139,9 +170,15 @@ class ApiController {
                     return false;
                 }
 
-                def uid = online?online.uid:''
-                online?.delete(flush:true);
-                _postLog(new StringBuffer('op=hostOffLive&room_id=').append(uid).append('&timestamp=').append(ts).append('&Version=video'));
+                online.delete(flush:true);
+                _postLog(new StringBuffer('op=hostOffLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
+                
+                def me = MediaEvent.findByUidAndSessionId(online.uid, online.sessionId)
+                if (me) {
+                    me.dateLeave = new Date(ts.toLong())
+                    me.duration = (me.dateLeave.time - me.dateLive.time)/60000
+                    me.save(flush:true)
+                }
                 break;
                 
             case 'backup':
@@ -157,9 +194,9 @@ class ApiController {
                 }
                 def mediaService = MediaService.get(online?online.mediaServiceId:'')
                 new MediaBackup(
-                    uid: online?online.uid:'-',
+                    uid: online.uid,
                     domain: mediaService?mediaService.domain:'-',
-                    sessionId: online?online.sessionId:'-',
+                    sessionId: online.sessionId,
                     flvid: flvid,
                     first: first.toBoolean(),
                     backupDate: new Date(ts.toLong())
@@ -173,7 +210,7 @@ class ApiController {
         }
     }
 
-    private static ExecutorService threadpool = Executors.newFixedThreadPool(2);
+    private static ExecutorService threadpool = Executors.newFixedThreadPool(5);
     private static Async async = Async.newInstance().use(threadpool);
     
     private void _postLog(StringBuffer query) {

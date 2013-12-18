@@ -595,3 +595,8 @@ a.skip {
 	position: absolute;
 	left: -9999px;
 }
+
+
+.body > .nav {
+    display:none;
+}

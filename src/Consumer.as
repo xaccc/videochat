@@ -91,6 +91,7 @@ package
         {
             setVideo();
 
+            /*
             // info text
             var myformat:TextFormat = new TextFormat();
             myformat.size = 24;
@@ -108,6 +109,7 @@ package
             fieldSpeed.filters = [new DropShadowFilter()];
             fieldSpeed.filters[0].color = 0xFFFFFF
             addChild(fieldSpeed);
+            */
         }
         
         // bandwidth detection on the server
@@ -145,6 +147,7 @@ package
             
             if (vidStream == null)
                 vidStream = new Video(w, h);
+            vidStream.smoothing = true;
             vidStream.x = 0;
             vidStream.y = (stage.stageHeight - h) / 2;
             addChild(vidStream);

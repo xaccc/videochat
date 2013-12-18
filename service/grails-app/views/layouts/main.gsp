@@ -19,7 +19,18 @@
 </head>
 <body>
 	<div id="grailsLogo" role="banner"><p style="line-height:3em;font-size:1.5em;padding-left:1em;">流媒体平台管理器</p></div>
+    <div class="nav" role="navigation">
+        <ul>
+            <li><g:link class="list" action="list" controller="mediaService"><g:message code="default.list.label" args="[message(code: 'mediaService.label', default: 'Services')]" /></g:link></li>
+            <li><g:link class="list" action="list" controller="mediaBackup"><g:message code="default.list.label" args="[message(code: 'mediaBackup.label', default: 'Backups')]" /></g:link></li>
+            <li><g:link class="list" action="list" controller="online"><g:message code="default.list.label" args="[message(code: 'online.label', default: 'Onlines')]" /></g:link></li>
+            <li><g:link class="list" action="list" controller="mediaEvent"><g:message code="default.list.label" args="[message(code: 'mediaEvent.label', default: 'Media Event')]" /></g:link></li>
+            <li><g:link class="create" action="create"><g:message code="default.new.label" args="[message(code: 'mediaService.label', default: 'Media Service')]" /></g:link></li>
+        </ul>
+    </div>
+    <div class="body">
 	<g:layoutBody/>
+    </div>
 	<div class="footer" role="contentinfo"></div>
 	<div id="spinner" class="spinner" style="display:none;"><g:message code="spinner.alt" default="Loading&hellip;"/></div>
 	<g:javascript library="application"/>

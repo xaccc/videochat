@@ -27,6 +27,7 @@ class MediaBackup {
 
 	static mapping = {
         id generator: 'uuid'
+        sort dateCreated: "desc"
 	}
     
     String toString() {"$uid($flvid)"}
