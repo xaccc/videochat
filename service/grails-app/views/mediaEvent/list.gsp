@@ -28,9 +28,9 @@
 					
 						<g:sortableColumn property="uid" title="${message(code: 'mediaEvent.uid.label', default: 'Uid')}" />
 					
-						<g:sortableColumn property="sessionId" title="${message(code: 'mediaEvent.sessionId.label', default: 'Session Id')}" />
-					
 						<g:sortableColumn property="mediaServiceId" title="${message(code: 'mediaEvent.mediaServiceId.label', default: 'Media Service Id')}" />
+					
+						<g:sortableColumn property="sessionId" title="${message(code: 'mediaEvent.sessionId.label', default: 'Session Id')}" />
 					
 						<g:sortableColumn property="dateLive" title="${message(code: 'mediaEvent.dateLive.label', default: 'Date Live')}" />
 					
@@ -42,19 +42,25 @@
 				</thead>
 				<tbody>
 				<g:each in="${mediaEventInstanceList}" status="i" var="mediaEventInstance">
+                    <g:set var="mediaService" value="${videochat.MediaService.get(mediaEventInstance.mediaServiceId)}" />
 					<tr class="${(i % 2) == 0 ? 'even' : 'odd'}">
 					
-						<td uuid="${mediaEventInstance?.id}">${fieldValue(bean: mediaEventInstance, field: "uid")}</td>
+						<td uuid="${mediaEventInstance?.id}"><g:link controller="mediaBackup" action="listByUid" id="${mediaEventInstance.uid}">${fieldValue(bean: mediaEventInstance, field: "uid")}</g:link></td>
 					
-						<td>${fieldValue(bean: mediaEventInstance, field: "sessionId")}</td>
-					
+                        <g:if test="${mediaService}">
+                        <td><g:link action="show" id="${mediaService?.id}" controller="mediaService">${fieldValue(bean: mediaService, field: "name")}</g:link></td>
+                        </g:if>
+                        <g:else>
 						<td>${fieldValue(bean: mediaEventInstance, field: "mediaServiceId")}</td>
+                        </g:else>
+					
+						<td><g:link controller="mediaBackup" action="listBySession" id="${mediaEventInstance.sessionId}">${fieldValue(bean: mediaEventInstance, field: "sessionId")}</g:link></td>
 					
 						<td><g:formatDate date="${mediaEventInstance.dateLive}" /></td>
 					
 						<td><g:formatDate date="${mediaEventInstance.dateLeave}" /></td>
 					
-						<td>${fieldValue(bean: mediaEventInstance, field: "duration")}</td>
+						<td>${fieldValue(bean: mediaEventInstance, field: "duration")}分钟</td>
 					
 					</tr>
 				</g:each>

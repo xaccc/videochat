@@ -35,6 +35,8 @@
 						<g:sortableColumn property="dateCreated" title="${message(code: 'online.dateCreated.label', default: 'Date Created')}" />
 					
 						<g:sortableColumn property="lastUpdated" title="${message(code: 'online.lastUpdated.label', default: 'Last Updated')}" />
+                        
+                        <th>&nbsp;</th>
 					
 					</tr>
 				</thead>
@@ -43,15 +45,23 @@
                     <g:set var="mediaService" value="${videochat.MediaService.get(onlineInstance.mediaServiceId)}" />
 					<tr class="${(i % 2) == 0 ? 'even' : 'odd'}">
 					
-						<td>${fieldValue(bean: onlineInstance, field: "uid")}</td>
+						<td uuid="${onlineInstance?.id}"><g:link controller="mediaBackup" action="listByUid" id="${onlineInstance.uid}">${fieldValue(bean: onlineInstance, field: "uid")}</g:link></td>
 
-						<td><g:link action="show" id="${mediaService.id}" controller="mediaService">${fieldValue(bean: mediaService, field: "name")}</g:link></td>
+                        <g:if test="${mediaService}">
+                        <td><g:link action="show" id="${mediaService?.id}" controller="mediaService">${fieldValue(bean: mediaService, field: "name")}</g:link></td>
+                        </g:if>
+                        <g:else>
+						<td>${fieldValue(bean: onlineInstance, field: "mediaServiceId")}</td>
+                        </g:else>
 					
-						<td>${fieldValue(bean: onlineInstance, field: "sessionId")}</td>
+						<td><g:link controller="mediaBackup" action="listBySession" id="${onlineInstance.sessionId}">${fieldValue(bean: onlineInstance, field: "sessionId")}</g:link></td>
 					
 						<td><g:formatDate date="${onlineInstance.dateCreated}" /></td>
 					
 						<td><g:formatDate date="${onlineInstance.lastUpdated}" /></td>
+                        
+                        <td><g:remoteLink before="if(!confirm('Are you sure?')) return false" onSuccess="location.reload()" onFailure="alert('删除失败！')"
+                                controller="api" action="removeSession" id="${onlineInstance.sessionId}">下线</g:remoteLink></td>
 					
 					</tr>
 				</g:each>
@@ -61,5 +71,7 @@
 				<g:paginate total="${onlineInstanceTotal}" />
 			</div>
 		</div>
+
+
 	</body>
 </html>

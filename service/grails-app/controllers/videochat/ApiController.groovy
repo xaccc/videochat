@@ -130,7 +130,38 @@ class ApiController {
                     ]}
         }
     }
-    
+
+    //
+    // 为呆死状态的连接手工下线
+    //    
+    def removeSession(String id) {
+        def online = Online.findBySessionId(id)
+        if (!online) {
+            render(status: 404,contentType: "application/json") {
+                Method = "removeSession"
+                SessionId = id
+                result = 'Session Don\'t Exists!'
+            }
+            return false;
+        }
+
+        Long ts = new Date().time;
+        online.delete(flush: true)
+        _postLog(new StringBuffer('op=hostOffLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
+        def me = MediaEvent.findByUidAndSessionId(online.uid, online.sessionId)
+        if (me) {
+            me.dateLeave = new Date(ts)
+            me.duration = (me.dateLeave.time - me.dateLive.time)/60000
+            me.save(flush:true)
+        }
+
+        render(contentType: "application/json") {
+            Method = "removeSession"
+            SessionId = id
+            Status = 'Removed'
+        }
+
+    }
 
     //
     // 处理Log
@@ -155,10 +186,13 @@ class ApiController {
 
                 _postLog(new StringBuffer('op=hostLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
                 
-                new MediaEvent(uid: online.uid, 
-                               sessionId: online.sessionId,
-                               mediaServiceId: online.mediaServiceId,
-                               dateLive: new Date(ts.toLong())).save(flush:true)
+                def me = MediaEvent.findByUidAndSessionId(online.uid, online.sessionId)
+                if(!me) {
+                    new MediaEvent(uid: online.uid, 
+                                   sessionId: online.sessionId,
+                                   mediaServiceId: online.mediaServiceId,
+                                   dateLive: new Date(ts.toLong())).save(flush:true)
+                }
                 break;
 
             case 'broadcastClose':

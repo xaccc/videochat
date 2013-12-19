@@ -44,11 +44,11 @@
 				<g:each in="${mediaBackupInstanceList}" status="i" var="mediaBackupInstance">
 					<tr class="${(i % 2) == 0 ? 'even' : 'odd'}">
 					
-						<td>${fieldValue(bean: mediaBackupInstance, field: "uid")}</td>
+						<td><g:link controller="mediaBackup" action="listByUid" id="${mediaBackupInstance.uid}">${fieldValue(bean: mediaBackupInstance, field: "uid")}</g:link></td>
 					
 						<td>${fieldValue(bean: mediaBackupInstance, field: "domain")}</td>
 					
-						<td>${fieldValue(bean: mediaBackupInstance, field: "sessionId")}</td>
+						<td><g:link controller="mediaBackup" action="listBySession" id="${mediaBackupInstance.sessionId}">${fieldValue(bean: mediaBackupInstance, field: "sessionId")}</g:link></td>
 					
 						<td>${fieldValue(bean: mediaBackupInstance, field: "flvid")}</td>
 					
@@ -61,7 +61,7 @@
 				</tbody>
 			</table>
 			<div class="pagination">
-				<g:paginate total="${mediaBackupInstanceTotal}" />
+				<g:paginate total="${mediaBackupInstanceTotal}" params="[id:params.id]" />
 			</div>
 		</div>
 	</body>

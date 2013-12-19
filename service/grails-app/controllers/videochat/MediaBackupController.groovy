@@ -14,6 +14,16 @@ class MediaBackupController {
         params.max = Math.min(max ?: 10, 100)
         [mediaBackupInstanceList: MediaBackup.list(params), mediaBackupInstanceTotal: MediaBackup.count()]
     }
+    
+    def listBySession(String id,Integer max) {
+        params.max = Math.min(max ?: 10, 100)
+        render(view:'list', model:[mediaBackupInstanceList: MediaBackup.findAllBySessionId(id, params), mediaBackupInstanceTotal: MediaBackup.countBySessionId(id)])
+    }
+    
+    def listByUid(String id,Integer max) {
+        params.max = Math.min(max ?: 10, 100)
+        render(view:'list', model:[mediaBackupInstanceList: MediaBackup.findAllByUid(id, params), mediaBackupInstanceTotal: MediaBackup.countByUid(id)])
+    }    
 
     def create() {
         [mediaBackupInstance: new MediaBackup(params)]

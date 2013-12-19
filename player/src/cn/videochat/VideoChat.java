@@ -71,7 +71,7 @@ public class VideoChat {
 
 	    public class MyVideoRender implements GLSurfaceView.Renderer {
 	        private long renderTime = System.currentTimeMillis();
-	        private final int fps = 1000 / 25; // max 25fps
+	        private final int fps = 1000 / 15; // max 25fps
 	        private long _handler = 0;
 
 	        public MyVideoRender() {
@@ -108,15 +108,6 @@ public class VideoChat {
 	        }
 
 	        public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-/*	    		// Set the background clear color to black.
-	    		GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	    		
-	    		// Use culling to remove back faces.
-	    		GLES20.glEnable(GLES20.GL_CULL_FACE);
-	    		
-	    		// Enable depth testing
-	    		GLES20.glEnable(GLES20.GL_DEPTH_TEST);
-	    		*/
 	    		// call native lib
 	    		_handler = VideoChat.CreateRender();
 	            Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
