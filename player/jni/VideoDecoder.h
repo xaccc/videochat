@@ -1,18 +1,25 @@
 #ifndef __VIDEODECODER_H__
 #define __VIDEODECODER_H__
 
+#define USEFFMPEG	1
 
 
-extern "C" {
+
 
 #ifndef   UINT64_C
 #define   UINT64_C(value) __CONCAT(value,ULL)
 #endif
 
+#if	USEFFMPEG
+extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libpostproc/postprocess.h"  
+} // extern "C"
+#else
+#include "h264dec/avcodec.h"
+#include "h264dec/h264.h"
+#endif
 
-} // extern "C" 
 
 
 #include "utils.h"
@@ -45,7 +52,9 @@ private:
 private:
     uint8_t lengthSizeMinusOne;
     AVCodecContext *codec_context;
+#if USEFFMPEG
     AVCodec *_codec;
+#endif
     
     uint8_t *h264stream_buffer;
     uint32_t h264stream_buffer_size;

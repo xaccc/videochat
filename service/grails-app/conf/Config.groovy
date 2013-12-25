@@ -100,3 +100,8 @@ postLog {
     Port = 80
     Path = '/log/post2bis'
 }
+
+directRecord {
+    base = '/record_streams/'
+    ext = '.flv'
+}

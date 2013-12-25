@@ -5,6 +5,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "VideoDecoder.h"
 
 extern "C" {
 
@@ -12,9 +13,11 @@ extern "C" {
 #define   UINT64_C(value) __CONCAT(value,ULL)
 #endif
 
+#if USEFFMPEG
 #include "libavcodec/avcodec.h"
 #include "libpostproc/postprocess.h"  
 #include "libavutil/imgutils.h"
+#endif
 
 } // extern "C" 
 
@@ -53,7 +56,11 @@ private:
     GLuint simpleProgram;
     
     Mutex      m_myPictureLock;
+#if USEFFMPEG
     AVPicture* m_myPicture;
+#else
+    char*	   m_myPicture;
+#endif
     int        m_myPictureSize;
     
     uint32_t m_width;

@@ -23,3 +23,5 @@ player_sample.tar.bz2
 VideoChatPlayer.apk
 
 service/videochat.war
+
+.DS_Store

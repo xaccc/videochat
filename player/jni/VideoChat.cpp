@@ -135,12 +135,14 @@ size_t VideoChat::convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nm
 
         memset(pThis->szRTMPUrl, 0, MAX_RTMPURL_SIZE);
 
-        snprintf(pThis->szRTMPUrl, MAX_RTMPURL_SIZE, "rtmp://%s:%d/%s/%s live=1",
-                (const char*)data["Host"],
+        const char* host = (const char*)data["Host"];
+        if (host && strlen(host) > 0) {
+        	snprintf(pThis->szRTMPUrl, MAX_RTMPURL_SIZE, "rtmp://%s:%d/%s/%s live=1",
+        		host,
                 (int)(json_int_t)data["Port"],
                 (const char*)data["Application"],
                 (const char*)data["Session"]);
-
+        }
         LOGI("[HTTP_get] json_parse: %s", pThis->szRTMPUrl);
         // relase
         json_value_free(data_ptr);
@@ -241,16 +243,17 @@ void* VideoChat::_play(void* pVideoChat)
         env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 1);
 
         if (pThis->m_paused) {
-    		sleep(100);
+    		//sleep(100);
     		continue;
     	}
 
     	//
         // RTMP url from Service API
         //
-        if (!get_rtmp_url(pThis)) {
+        if (!get_rtmp_url(pThis) || strlen(pThis->szRTMPUrl) == 0) {
             LOGI("Fetch Media Server Address Failed!");
             env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -1);
+            //sleep(100);
             continue; // connect faild!
         }
 
@@ -371,8 +374,11 @@ void* VideoChat::_play(void* pVideoChat)
     // free audio&video buffer
     //
     if (audio_buffer[0]) delete[] audio_buffer[0];
+#if USEFFMPEG
     if (picture) avcodec_free_frame(&picture);
-    
+#else
+    if (picture) av_free(picture);
+#endif
     env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 4);
     //env->DeleteGlobalRef( pThis->m_jObject );
     ((JavaVM*)pThis->m_jVM)->DetachCurrentThread();

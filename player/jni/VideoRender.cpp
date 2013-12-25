@@ -2,8 +2,8 @@
 
 
 
-#undef LOGI
-#define LOGI(...)
+//#undef LOGI
+//#define LOGI(...)
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -71,16 +71,27 @@ VideoRender::VideoRender()
     glGenTextures(1, &m_texUId);
     glGenTextures(1, &m_texVId);
     
+#if USEFFMPEG
     m_myPicture = (AVPicture*)av_malloc(sizeof(AVPicture));
     memset(m_myPicture, 0, sizeof(AVPicture));
+#else
+    m_myPicture = NULL;
+#endif
     m_myPictureSize = 0;
 }
 
 VideoRender::~VideoRender()
 {
+#if USEFFMPEG
     if (m_myPicture->data[0])
         av_free(m_myPicture->data[0]);
     av_free(m_myPicture);
+#else
+    if (m_myPicture) {
+    	delete[] m_myPicture;
+    	m_myPicture = NULL;
+    }
+#endif
 }
 
 void VideoRender::pause(bool paused)
@@ -200,10 +211,15 @@ void VideoRender::setViewport(int width, int height)
 void VideoRender::clearFrame()
 {
     AutoLock lock_frame(m_myPictureLock);
+#if USEFFMPEG
     if (m_myPicture->data[0])
         av_free(m_myPicture->data[0]);
     
     m_myPicture->data[0] = NULL;
+#else
+    delete[] m_myPicture;
+    m_myPicture = NULL;
+#endif
     m_myPictureSize = 0;
     m_width = m_height = 0;
 }
@@ -211,7 +227,8 @@ void VideoRender::clearFrame()
 void VideoRender::setFrame(AVFrame* frame, uint32_t width, uint32_t height)
 {
     AutoLock lock_frame(m_myPictureLock);
-    
+
+#if USEFFMPEG
     if ( m_width != width || m_height != height ) {
         // realloc picture
         if (m_myPicture->data[0])
@@ -232,6 +249,33 @@ void VideoRender::setFrame(AVFrame* frame, uint32_t width, uint32_t height)
     } else {
         LOGE("[VideoRender::set_frame] alloc picture memory failed!");
     }
+#else
+    if ( width > 0 && height > 0 && (m_width != width || m_height != height) ) {
+    	if (m_myPicture)
+    		delete[] m_myPicture;
+    	m_myPictureSize = width * height * 1.5;
+    	m_myPicture = new char[m_myPictureSize];
+    }
+
+    if (m_myPictureSize > 0 && m_myPicture) {
+        m_width = width;
+        m_height = height;
+        char* pY = m_myPicture;
+        char* pU = m_myPicture + width * height;
+        char* pV = pU + (width / 2) * (height / 2);
+
+        memset(m_myPicture, 0, m_myPictureSize);
+		// plane Y
+		for(int line=0;line<height;line++)
+			memcpy(pY+width*line, frame->data[0] + frame->linesize[0] * line, width);
+		for(int line=0;line<height/2;line++)
+			memcpy(pU+width*line/2, frame->data[1] + frame->linesize[1] * line, width/2);
+		for(int line=0;line<height/2;line++)
+			memcpy(pV+width*line/2, frame->data[2] + frame->linesize[2] * line, width/2);
+    } else {
+        LOGE("[VideoRender::set_frame] alloc picture memory failed!");
+    }
+#endif
 }
 
 void VideoRender::renderFrame()
@@ -239,7 +283,8 @@ void VideoRender::renderFrame()
     AutoLock lock_frame(m_myPictureLock);
 
     // render
-    if (m_myPicture->data[0] == NULL || m_paused)
+
+    if (m_height == 0 || m_paused)
     {
         // clear background
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -247,9 +292,18 @@ void VideoRender::renderFrame()
         return;
     }
     
+#if	USEFFMPEG
     bindTexture(m_texYId, (const char*)m_myPicture->data[0], m_myPicture->linesize[0], m_height);
     bindTexture(m_texUId, (const char*)m_myPicture->data[1], m_myPicture->linesize[1], m_height/2);
     bindTexture(m_texVId, (const char*)m_myPicture->data[2], m_myPicture->linesize[2], m_height/2);
+#else
+    char* pY = m_myPicture;
+    char* pU = m_myPicture + m_width * m_height;
+    char* pV = pU + m_width * m_height / 4 ;
+    bindTexture(m_texYId, (const char*)pY, m_width, m_height);
+    bindTexture(m_texUId, (const char*)pU, m_width/2, m_height/2);
+    bindTexture(m_texVId, (const char*)pV, m_width/2, m_height/2);
+#endif
     
     glVertexAttribPointer(ATTRIB_VERTEX, 3, GL_FLOAT, 0, 0, gl_squareVertices);
     glEnableVertexAttribArray(ATTRIB_VERTEX);

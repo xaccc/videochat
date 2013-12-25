@@ -29,7 +29,6 @@ class ApiController {
         def mediaServices = mediaServicesCount > 0 ? MediaService.findAllByEnabled(true, [offset:mediaServicesOffset, max:1])
                                                    : [];
         
-        println "uid=$uid, mediaServicesCount=$mediaServicesCount, Random=${Math.abs(new Random().nextInt())}"
         if (mediaServices.size() > 0) {
             def sessionId = uid.toLowerCase() + '_' + Long.toHexString(System.nanoTime()).toLowerCase();
             def server = mediaServices[0]
@@ -106,12 +105,41 @@ class ApiController {
         }
     }
     
+    def directRecord(String uid) {
+        
+        def record = null
+        
+        if (params.fid && params.sid) {
+            record = MediaBackup.find("FROM MediaBackup a WHERE a.uid=? and a.flvid=? and a.sessionId=?", 
+                                        [uid, params.fid, params.sid])
+        } else {
+            params.login = params.login?params.login.toBoolean():true
+            record = MediaBackup.findByFirstAndUid(params.login, uid, [sort:'dateCreated', order:'desc'])
+        }
+        
+        if (record) {
+            redirect(url:   'http://' + record.domain
+                            + (grailsApplication.config.directRecord.base?:'/record_streams/')
+                            + record.sessionId + '_' 
+                            + record.flvid 
+                            + (grailsApplication.config.directRecord.ext?:'.flv'))
+            return false;
+        } else {
+            render(status: 404,contentType: "application/json") {
+                Method = "directRecord"
+                UID = uid
+                result = 'Record Don\'t Exists!'
+            }
+            return false;
+        }
+    }
+    
     //
     // 获取用户直播录像
     //
     def recordLog(String uid) {
         params.login = params.login?params.login.toBoolean():true
-        params.max = Math.max(100, params.max?params.max.toLong():10)
+        params.max = Math.min(100, params.max?params.max.toLong():10)
         def records = []
         
         records = params.login ? MediaBackup.findAllByFirstAndUid(true, uid, params)
@@ -121,8 +149,8 @@ class ApiController {
             Method = "recordLog"
             UID = uid
             Records = records.collect{rec -> [
-                    'UUID': rec.id,
-                    'IP': rec.domain,
+                    //'UUID': rec.id,
+                    //'IP': rec.domain,
                     'SID': rec.sessionId,
                     'FID': rec.flvid,
                     'Login': rec.first,

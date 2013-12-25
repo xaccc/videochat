@@ -1,8 +1,9 @@
 #include "VideoDecoder.h"
 #include <librtmp/rtmp.h>
 
-#undef LOGI
-#define LOGI(...)
+//#undef LOGI
+//#define LOGI(...)
+
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -54,6 +55,7 @@ static void log_callback(void* ptr, int level,const char* fmt,va_list vl)
 H264Decodec::H264Decodec()
     : lengthSizeMinusOne(0), h264stream_buffer(NULL), h264stream_buffer_size(0)
 {
+#if	USEFFMPEG
     av_log_set_callback(log_callback);
     avcodec_register_all();
 
@@ -65,15 +67,26 @@ H264Decodec::H264Decodec()
     // codec_context->pix_fmt = PIX_FMT_YUV420P;
 
     avcodec_open2(codec_context, _codec, NULL);
+#else // custom h264dec
+    codec_context = avcodec_alloc_context();
+    avcodec_open(codec_context);
+#endif
 }
 
 H264Decodec::~H264Decodec()
 {
     if(codec_context)
     {
+#if	USEFFMPEG
         avcodec_close(codec_context);
         av_free(codec_context);
         codec_context = NULL;
+#else // custom h264dec
+    decode_end(codec_context);
+    free(codec_context->priv_data);
+    free(codec_context);
+    codec_context = NULL;
+#endif
     }
 
     if (h264stream_buffer) {
@@ -178,8 +191,7 @@ int H264Decodec::final_decode_header(
     uint8_t* sequenceParameterSet, uint32_t sequenceParameterSetLength,
     uint8_t* pictureParameterSet, uint32_t pictureParameterSetLength, AVFrame* picture, int* got_picture) {
 
-    AVPacket packet = {0};
-    int final_size = sequenceParameterSetLength + pictureParameterSetLength + 8;
+    int final_size = sequenceParameterSetLength + pictureParameterSetLength + 6;
 
     while (final_size > h264stream_buffer_size) {
         h264stream_buffer_size += 1024*10; // up 10k
@@ -187,23 +199,29 @@ int H264Decodec::final_decode_header(
         h264stream_buffer = new uint8_t[h264stream_buffer_size];
     }
 
-    h264stream_buffer[0] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 0] = 0;
-    h264stream_buffer[1] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 1] = 0;
-    h264stream_buffer[2] = 0; h264stream_buffer[sequenceParameterSetLength + 4 + 2] = 0;
-    h264stream_buffer[3] = 1; h264stream_buffer[sequenceParameterSetLength + 4 + 3] = 1;
-    memcpy(h264stream_buffer + 4, sequenceParameterSet, sequenceParameterSetLength);
-    memcpy(h264stream_buffer + sequenceParameterSetLength + 8, pictureParameterSet, pictureParameterSetLength);
+    h264stream_buffer[0] = 0; h264stream_buffer[sequenceParameterSetLength + 3 + 0] = 0;
+    h264stream_buffer[1] = 0; h264stream_buffer[sequenceParameterSetLength + 3 + 1] = 0;
+    h264stream_buffer[2] = 1; h264stream_buffer[sequenceParameterSetLength + 3 + 2] = 1;
+    memcpy(h264stream_buffer + 3, sequenceParameterSet, sequenceParameterSetLength);
+    memcpy(h264stream_buffer + sequenceParameterSetLength + 6, pictureParameterSet, pictureParameterSetLength);
 
+#if USEFFMPEG
+    AVPacket packet = {0};
     av_init_packet(&packet);
     av_packet_from_data(&packet, h264stream_buffer, final_size);
 
     return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
+#else
+    decode_frame(codec_context, picture, got_picture, h264stream_buffer, sequenceParameterSetLength + 3);
+    decode_frame(codec_context, picture, got_picture, h264stream_buffer + sequenceParameterSetLength + 3, pictureParameterSetLength + 3);
+
+    return 0;
+#endif
 }
 
 int H264Decodec::final_decode(uint8_t* buffer, uint32_t buf_size, AVFrame* picture, int* got_picture) {
 
-    AVPacket packet = {0};
-    int final_size = buf_size + 4;
+    int final_size = buf_size + 3;
 
     while (final_size > h264stream_buffer_size) {
         h264stream_buffer_size += 1024*10; // up 10k
@@ -213,12 +231,16 @@ int H264Decodec::final_decode(uint8_t* buffer, uint32_t buf_size, AVFrame* pictu
 
     h264stream_buffer[0] = 0;
     h264stream_buffer[1] = 0;
-    h264stream_buffer[2] = 0;
-    h264stream_buffer[3] = 1;
+    h264stream_buffer[2] = 1;
     memcpy(h264stream_buffer + 4, buffer, buf_size);
 
+#if USEFFMPEG
+    AVPacket packet = {0};
     av_init_packet(&packet);
     av_packet_from_data(&packet, h264stream_buffer, final_size);
 
     return avcodec_decode_video2(codec_context, picture, got_picture, &packet);
+#else
+    return decode_frame(codec_context, picture, got_picture, h264stream_buffer, final_size);
+#endif
 }

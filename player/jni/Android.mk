@@ -20,19 +20,29 @@ LOCAL_ARM_MODE  := arm
 
 #LOCAL_ARM_NEON  := true
 #LOCAL_CFLAGS    := -DHAVE_NEON=1
+LOCAL_CFLAGS    := -DUSEFFMPEG=1
 
-LOCAL_MODULE    := vc
-LOCAL_SRC_FILES := VideoChat.cpp \
-                   VideoChat_jni.cpp \
-                   AudioDecoder.cpp \
-                   AudioRender.cpp \
-                   VideoDecoder.cpp \
-                   VideoRender.cpp \
-                   json.c
+LOCAL_MODULE    :=  vc
+LOCAL_SRC_FILES :=  VideoChat.cpp \
+                    VideoChat_jni.cpp \
+                    AudioDecoder.cpp \
+                    AudioRender.cpp \
+                    VideoDecoder.cpp \
+                    VideoRender.cpp \
+                    json.c \
+                    h264dec/cabac.cpp \
+                    h264dec/common.cpp \
+                    h264dec/dsputil.cpp \
+                    h264dec/golomb.cpp \
+                    h264dec/h264.cpp \
+                    h264dec/h264utils.cpp \
+                    h264dec/mpegvideo.cpp \
+                    h264dec/H264Android.cpp
                    # \
                    #yuv2rgb/yuv2rgb16tab.c \
                    #yuv2rgb/yuv420rgb565c.c \
                    #yuv2rgb/yuv420rgb565.S
+
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include

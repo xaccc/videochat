@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.EditText;
 
 public class MainActivity extends Activity {
+	final boolean debug = false;
 	VideoChat vc = null;
 	VideoChat.View mView = null;
 
@@ -34,10 +35,14 @@ public class MainActivity extends Activity {
 		btnPlay = (Button) findViewById(R.id.button1);
 		btnStop = (Button) findViewById(R.id.button2);
 
-		txtRTMPUrl.setVisibility(View.INVISIBLE);
-		txtLog.setVisibility(View.INVISIBLE);
+		if (debug){
+			txtRTMPUrl.setVisibility(View.INVISIBLE);
+			txtLog.setVisibility(View.INVISIBLE);
+			btnStop.setVisibility(View.INVISIBLE); // default invisible stop
+		}else{
+			btnStop.setVisibility(View.INVISIBLE); // default invisible stop			
+		}
 		btnPlay.setVisibility(View.VISIBLE); // default invisible stop
-		btnStop.setVisibility(View.VISIBLE); // default invisible stop
 		txtLog.setText("fuck,I'm not a empty!!!");
 		
 		
@@ -45,7 +50,7 @@ public class MainActivity extends Activity {
 		btnPlay.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				startPlay();
+				if (!debug) startPlay();
 			}
 
 		});
@@ -54,7 +59,7 @@ public class MainActivity extends Activity {
 		btnStop.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				stopPlay();
+				if (!debug) stopPlay();
 			}
 		});
 
@@ -127,15 +132,17 @@ public class MainActivity extends Activity {
 		stopPlay();
 		
 		// Create VideoChat Instance
-		vc = new VideoChat();		
-//		vc.addBufferingUpdateListener(bufferUPdateListener);
-//		vc.addCompletionListener(completionListener);
-//		vc.addErrorListener(errorListener);
+		vc = new VideoChat();	
+		if (!debug){
+			vc.addBufferingUpdateListener(bufferUPdateListener);
+			vc.addCompletionListener(completionListener);
+			vc.addErrorListener(errorListener);
+			btnPlay.setVisibility(View.INVISIBLE);
+			btnStop.setVisibility(View.VISIBLE);
+		}
 		vc.setRender(mView);
 		vc.setDataSource("admin", txtRTMPUrl.getText().toString());
 		vc.play();
-//		btnPlay.setVisibility(View.INVISIBLE);
-//		btnStop.setVisibility(View.INVISIBLE);
 	}
 	
 
@@ -143,8 +150,10 @@ public class MainActivity extends Activity {
 		if (vc != null) {
 			vc.release();
 			vc = null;
-//			btnPlay.setVisibility(View.INVISIBLE);
-//			btnStop.setVisibility(View.INVISIBLE);
+			if (!debug) {
+				btnPlay.setVisibility(View.VISIBLE);
+				btnStop.setVisibility(View.INVISIBLE);
+			}
 		}
 	}
 	
@@ -174,7 +183,7 @@ public class MainActivity extends Activity {
 				}
 				//btnPlay.performClick();
 				
-				startPlay();
+				//startPlay();
 			}
 		});
 		t.run();
