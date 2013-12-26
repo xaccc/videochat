@@ -7,32 +7,40 @@
  */
 package cn.videochat;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.StatusLine;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+
+import cn.videochat.VideoChat.View.MyVideoRender;
+
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ConfigurationInfo;
 import android.opengl.GLSurfaceView;
+import android.os.AsyncTask;
 import android.util.Log;
-import android.view.SurfaceHolder;
 
 public class VideoChat {
 	private static final String TAG = "VideoChat.LOG";
 	
-	
 	//
 	// Error Codes
 	//
-	public static final int ERROR_FETCH_PLAYER_URL = -1;
-	public static final int ERROR_CONNECT_MEDIA_SERVER = -2;
-	public static final int ERROR_RECV_MEDIA_PACKET = -3;
-	public static final int ERROR_INVALID_PACKET_TYPE = -4;
-	
-	
+	public static final int ERROR_FETCH_PLAYER_URL = -1;	// 获取主播地址失败
+	public static final int ERROR_CONNECT_MEDIA_SERVER = -2;// 连接媒体服务器失败
+	public static final int ERROR_RECV_MEDIA_PACKET = -3;   // 接收媒体包错误
+	public static final int ERROR_INVALID_PACKET_TYPE = -4; // 无效的数据包类型
 
 	//
 	// 事件回调接口定义
@@ -50,7 +58,11 @@ public class VideoChat {
 	public interface ErrorListener	 {
 		public boolean onError(VideoChat player, int what, int extra);
 	}
-
+	
+	protected interface glSurfaceViewCreateListener {
+  	     public void onCreateListener(MyVideoRender myVideoRender);
+   	}
+       
 	public static class View extends GLSurfaceView {
 
 	    MyVideoRender render = new MyVideoRender();
@@ -61,13 +73,9 @@ public class VideoChat {
 	        setRenderer(render);
 	    }
 	    
-	    public void surfaceDestroyed (SurfaceHolder holder){
-	        render.Destory();
-	    }
-	    
-	    public long getRenderHandler(){
-	        return render.getHandler();
-	    }
+		public MyVideoRender getRender() {
+			return render;
+		}
 
 	    public class MyVideoRender implements GLSurfaceView.Renderer {
 	        private long renderTime = System.currentTimeMillis();
@@ -80,6 +88,7 @@ public class VideoChat {
 	        public void Destory() {
 	            VideoChat.RenderRelease(_handler);
 	            _handler = 0;
+	            Log.i("FUCK", "[Destory]");
 	        }
 
 	        public long getHandler() {
@@ -105,13 +114,35 @@ public class VideoChat {
 	        public void onSurfaceChanged(GL10 gl, int width, int height) {
 	    		if(height == 0) { height = 1; }
 	    		gl.glViewport(0, 0, width, height);
+	    		Log.i("FUCK", "[onSurfaceChanged]");
 	        }
 
 	        public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-	    		// call native lib
+	        	Log.i("FUCK", "[onSurfaceCreated]");
+	        	this.Destory();
 	    		_handler = VideoChat.CreateRender();
 	            Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+	            
+	            fireCreateEvent();
 	        }
+	        
+
+	    	private HashSet<glSurfaceViewCreateListener> createListeners = new HashSet<glSurfaceViewCreateListener>();
+	    	public void addCreateListener(glSurfaceViewCreateListener listener){
+	    		createListeners.add(listener);
+	    	}
+	    	public void removeCreateListener(glSurfaceViewCreateListener listener){
+	    		createListeners.remove(listener);
+	    	}
+	    	
+	    	
+	    	private void fireCreateEvent(){
+	    		Iterator<glSurfaceViewCreateListener> itr = createListeners.iterator();
+	    		while(itr.hasNext()){
+	    			glSurfaceViewCreateListener listener = (glSurfaceViewCreateListener)itr.next();
+	    			listener.onCreateListener(this);
+	    		}
+	    	}
 	    } // class MyVideoRender
 	} // class View
 
@@ -123,8 +154,11 @@ public class VideoChat {
 	private int apiPort = 80;
 	private String apiApp = "videochat";
 	private String url;
+	private String UserID = "";
+	private String MyID = "";
 	private View view;
 	private long _handler = 0L;
+	private boolean _isPlayering = false;
 
 	public VideoChat(){
 		_handler = Init();
@@ -145,14 +179,15 @@ public class VideoChat {
 	
 	public void setDataSource(String myId, String uId)
 	{
+		UserID = uId;
+		MyID = myId;
 		StringBuffer sb = new StringBuffer(buildApiUrl());
 		sb.append("liveUrl?myid=").append(myId).append("&uid=").append(uId);
 		url = sb.toString();
 		Log.i(TAG, "[setDataSource]");
 	}
 	
-	public void setUrl(String _url)
-	{
+	public void setUrl(String _url) {
 		url = _url;
 		Log.i(TAG, "[setUrl]");
 	}
@@ -160,6 +195,10 @@ public class VideoChat {
 	public void play() {
 		OpenPlayer(_handler, url);
 		Log.i(TAG, "[play]");
+	}
+	
+	public boolean isPlaying() {
+		return _isPlayering;
 	}
 
 	public void pause(boolean paused) {
@@ -173,8 +212,19 @@ public class VideoChat {
 	}
 
 	public void setRender(View view) {
-		SetVideoRender(_handler, view.getRenderHandler());
+		SetVideoRender(_handler, view.getRender().getHandler());
+		view.getRender().addCreateListener(onViewCreated);
 	}
+	
+	//
+	// surface view created
+	//
+	glSurfaceViewCreateListener onViewCreated = new glSurfaceViewCreateListener(){
+		@Override
+		public void onCreateListener(MyVideoRender myVideoRender) {
+			SetVideoRender(_handler, myVideoRender.getHandler());
+		}
+	};
 
 	public void render() {
 		RenderFrame(_handler);
@@ -246,9 +296,6 @@ public class VideoChat {
 		}
 	}
 	
-	//
-	// utils
-	//
 	private String buildApiUrl() {
 		return new StringBuffer("http://").append(apiHost).append(":")
 				.append(apiPort).append("/").append(apiApp).append("/api/")
@@ -298,36 +345,75 @@ public class VideoChat {
 	//
 	// 内部JNI事件相关接口定义(不能修改函数名)
 	//
+	int lastErrorId = 0;
 	public void onJniEvent(int eventId) {
 		Log.i(TAG, "[onJniEvent] eventId=" + eventId);
-		if (eventId == 0)
-		{
+		if (eventId == 0) {
 			// NDK ping
-		}
-		else if (eventId == 1)
-		{
-			//onBufferingBegin
+		} else if (eventId == 1) {
+			// onBufferingBegin
+			StringBuffer sb = new StringBuffer(buildApiUrl());
+			sb.append("postLog?type=client&event=start&uid=")
+					.append(UserID).append("&myid=").append(MyID);
+			new PostLog().execute(sb.toString());
+			
+			lastErrorId = 0;
+			_isPlayering = true;
 			fireBufferingBeginEvent();
-		}
-		else if(eventId >= 100 && eventId <= 200)
-		{ 
-			//onBufferingUpdate
+		} else if (eventId >= 100 && eventId <= 200) {
+			// onBufferingUpdate
 			fireBufferingUpdateEvent(eventId - 100);
-		}
-		else if(eventId == 3) 
-		{
-			//onBufferingComplete
+		} else if (eventId == 3) {
+			lastErrorId = 0;
+			// onBufferingComplete
 			fireBufferingCompleteEvent();
-		}
-		else if(eventId == 4)
-		{
-			//onBufferingComplete
+		} else if (eventId == 4) {
+			// onBufferingComplete
+			StringBuffer sb = new StringBuffer(buildApiUrl());
+			sb.append("postLog?type=client&event=stop&uid=")
+					.append(UserID).append("&myid=").append(MyID);
+			new PostLog().execute(sb.toString());
+			
+			_isPlayering = false;
 			fireCompletionEvent();
-		}
-		else if ( eventId < 0)
-		{
-			//onError
+		} else if (eventId < 0) {
+			if (lastErrorId != eventId) {
+				lastErrorId = eventId;
+				StringBuffer sb = new StringBuffer(buildApiUrl());
+				sb.append("postLog?type=client&event=error&code=")
+						.append(Math.abs(eventId)).append("&uid=")
+						.append(UserID).append("&myid=").append(MyID);
+				new PostLog().execute(sb.toString());
+			}
+			
+			// onError
 			fireErrorEvent(eventId, 0);
+		}
+	}
+	
+	private class PostLog extends AsyncTask<String, String, String> {
+
+		@Override
+		protected String doInBackground(String... uri) {
+			HttpClient httpclient = new DefaultHttpClient();
+			HttpResponse response;
+			String responseString = null;
+			try {
+				response = httpclient.execute(new HttpGet(uri[0]));
+				StatusLine statusLine = response.getStatusLine();
+				if (statusLine.getStatusCode() == HttpStatus.SC_OK) {
+				}
+			} catch (ClientProtocolException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return responseString;
+		}
+
+		@Override
+		protected void onPostExecute(String result) {
+			super.onPostExecute(result);
 		}
 	}
 

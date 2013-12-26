@@ -1,7 +1,7 @@
 #ifndef __VIDEODECODER_H__
 #define __VIDEODECODER_H__
 
-#define USEFFMPEG	1
+//#define USEFFMPEG
 
 
 
@@ -10,7 +10,7 @@
 #define   UINT64_C(value) __CONCAT(value,ULL)
 #endif
 
-#if	USEFFMPEG
+#ifdef	USEFFMPEG
 extern "C" {
 #include "libavcodec/avcodec.h"
 #include "libpostproc/postprocess.h"  
@@ -52,7 +52,7 @@ private:
 private:
     uint8_t lengthSizeMinusOne;
     AVCodecContext *codec_context;
-#if USEFFMPEG
+#ifdef USEFFMPEG
     AVCodec *_codec;
 #endif
     

@@ -42,7 +42,7 @@ public:
 
     int Init();
     void Release();
-    void setVideoRender(VideoRender* _pVideoRender) { pVideoRender = _pVideoRender; }
+    void setVideoRender(VideoRender* _pVideoRender) { AutoLock lock(renderLock); pVideoRender = _pVideoRender; }
 
     int Play(const char* szUrl);
     int StopPlay();
@@ -68,6 +68,7 @@ private:
     pthread_attr_t thread_attr;
 
     Mutex handleLock;
+    Mutex renderLock;
     
     bool m_playing;
     bool m_paused;

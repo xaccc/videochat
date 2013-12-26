@@ -71,7 +71,7 @@ VideoRender::VideoRender()
     glGenTextures(1, &m_texUId);
     glGenTextures(1, &m_texVId);
     
-#if USEFFMPEG
+#ifdef USEPOSTPROC
     m_myPicture = (AVPicture*)av_malloc(sizeof(AVPicture));
     memset(m_myPicture, 0, sizeof(AVPicture));
 #else
@@ -82,7 +82,7 @@ VideoRender::VideoRender()
 
 VideoRender::~VideoRender()
 {
-#if USEFFMPEG
+#ifdef USEPOSTPROC
     if (m_myPicture->data[0])
         av_free(m_myPicture->data[0]);
     av_free(m_myPicture);
@@ -211,7 +211,7 @@ void VideoRender::setViewport(int width, int height)
 void VideoRender::clearFrame()
 {
     AutoLock lock_frame(m_myPictureLock);
-#if USEFFMPEG
+#ifdef USEPOSTPROC
     if (m_myPicture->data[0])
         av_free(m_myPicture->data[0]);
     
@@ -228,7 +228,7 @@ void VideoRender::setFrame(AVFrame* frame, uint32_t width, uint32_t height)
 {
     AutoLock lock_frame(m_myPictureLock);
 
-#if USEFFMPEG
+#ifdef USEPOSTPROC
     if ( m_width != width || m_height != height ) {
         // realloc picture
         if (m_myPicture->data[0])
@@ -292,7 +292,7 @@ void VideoRender::renderFrame()
         return;
     }
     
-#if	USEFFMPEG
+#ifdef USEPOSTPROC
     bindTexture(m_texYId, (const char*)m_myPicture->data[0], m_myPicture->linesize[0], m_height);
     bindTexture(m_texUId, (const char*)m_myPicture->data[1], m_myPicture->linesize[1], m_height/2);
     bindTexture(m_texVId, (const char*)m_myPicture->data[2], m_myPicture->linesize[2], m_height/2);

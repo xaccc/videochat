@@ -11,8 +11,10 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout.LayoutParams;
 
-public class MainActivity extends Activity implements OnClickListener, ErrorListener, CompletionListener, BufferingUpdateListener {
-
+public class MainActivityDebug extends Activity implements OnClickListener, ErrorListener, CompletionListener, BufferingUpdateListener {
+	
+	final boolean debugmode = false;
+	
 	private VideoChat vc = null;
 	private VideoChat.View mView = null;
 
@@ -39,15 +41,37 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 		
 		txtLog.setEnabled(false);
 		txtLog.setText("fuck,I'm not a empty!!!");
-
-		btnPlay.setVisibility(View.VISIBLE); // default invisible stop
-		btnStop.setVisibility(View.INVISIBLE); // default invisible stop
-
+		
+		if (debugmode){
+			txtUserId.setVisibility(View.INVISIBLE);
+			txtLog.setVisibility(View.INVISIBLE);
+			btnPlay.setVisibility(View.INVISIBLE);
+			btnStop.setVisibility(View.INVISIBLE); // default invisible stop
+		}else{
+			btnPlay.setVisibility(View.VISIBLE); // default invisible stop
+			btnStop.setVisibility(View.INVISIBLE); // default invisible stop			
+		}
+		
 		// Play
 		btnPlay.setOnClickListener(this);
 		// Stop
 		btnStop.setOnClickListener(this);
 
+
+		if (debugmode) {
+			this.getCurrentFocus().post(new Runnable() {
+				@Override
+				public void run() {
+					try {
+						Thread.sleep(3000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					startPlay("user123");
+				}
+			});
+		}
+		
 		// test fuck
 		startPlay("user123");
 	}
@@ -67,18 +91,32 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 		vc.setDataSource("admin", room_id);
 		vc.play();
 
-		btnPlay.setVisibility(View.INVISIBLE);
-		btnStop.setVisibility(View.VISIBLE);
+		if (!debugmode){
+			btnPlay.setVisibility(View.INVISIBLE);
+			btnStop.setVisibility(View.VISIBLE);
+		}
 	}
+	
 
 	private void stopPlay() {
 		if (vc != null) {
 			vc.release();
 			vc = null;
-			btnPlay.setVisibility(View.VISIBLE);
-			btnStop.setVisibility(View.INVISIBLE);
+			if (!debugmode) {
+				btnPlay.setVisibility(View.VISIBLE);
+				btnStop.setVisibility(View.INVISIBLE);
+			}
 		}
 	}
+	
+	/*
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.activity_main, menu);
+		return true;
+	}
+	 */
 	
 	protected void onPause()
 	{
@@ -87,22 +125,15 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 	}
 
 
-	///////////////////////////////////////////////////////////////////////////
-	//
-	// 事件处理
-	//
-	///////////////////////////////////////////////////////////////////////////
-
-	
 	@Override
 	public void onClick(View arg0) {
 		switch(arg0.getId())
 		{
 		case R.id.btnPlay:
-			startPlay(txtUserId.getText().toString());
+			if(!debugmode) startPlay(txtUserId.getText().toString());
 			break;
 		case R.id.btnStop:
-			stopPlay();
+			if(!debugmode) stopPlay();
 			break;
 		}
 	}
@@ -119,8 +150,7 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 			}
 		});
 	}
-	
-	
+
 
 	@Override
 	public void onBufferingComplete(VideoChat player) {

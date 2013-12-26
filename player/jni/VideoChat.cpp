@@ -92,6 +92,7 @@ int VideoChat::Play(const char* url)
 void VideoChat::PausePlayer(bool paused)
 {
     AutoLock autoLock(handleLock);
+    AutoLock lock(renderLock);
     m_paused = paused;
     if (pAudioOutput) pAudioOutput->pause(paused);
     if (pVideoRender) pVideoRender->pause(paused);
@@ -329,6 +330,7 @@ void* VideoChat::_play(void* pVideoChat)
                 int got_picture = 0;
                 pThis->pH264Decodec->decode((uint8_t*)rtmp_pakt.m_body, rtmp_pakt.m_nBodySize, picture, &got_picture);
 
+                AutoLock lock(pThis->renderLock);
                 if (got_picture && pThis->pVideoRender) {
                     // draw buffer
                     pThis->pVideoRender->setFrame( picture,
@@ -366,9 +368,13 @@ void* VideoChat::_play(void* pVideoChat)
         pThis->pRtmp = NULL;
 
     }
-    
-    if (pThis->pVideoRender)
-        pThis->pVideoRender->clearFrame();
+
+    {
+    	AutoLock lock(pThis->renderLock);
+    	if (pThis->pVideoRender)
+    		pThis->pVideoRender->clearFrame();
+    }
+
     
     //
     // free audio&video buffer

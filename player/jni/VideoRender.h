@@ -2,6 +2,9 @@
 #define __VIDEORENDER_H__
 
 
+//#define	USEPOSTPROC
+
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -13,7 +16,7 @@ extern "C" {
 #define   UINT64_C(value) __CONCAT(value,ULL)
 #endif
 
-#if USEFFMPEG
+#ifdef USEPOSTPROC
 #include "libavcodec/avcodec.h"
 #include "libpostproc/postprocess.h"  
 #include "libavutil/imgutils.h"
@@ -56,7 +59,7 @@ private:
     GLuint simpleProgram;
     
     Mutex      m_myPictureLock;
-#if USEFFMPEG
+#ifdef USEPOSTPROC
     AVPicture* m_myPicture;
 #else
     char*	   m_myPicture;

@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">VideoChat</string>
+    <string name="app_name">视频聊天Demo</string>
     <string name="menu_settings">Settings</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="listen">收听</string>
+    <string name="listen">查看视频</string>
     <string name="stop">停止</string>
     <string name="rtmp_url">user1</string>
 
