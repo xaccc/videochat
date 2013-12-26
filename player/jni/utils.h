@@ -62,6 +62,7 @@ public:
 
     bool tryLock() const{ return 0 == pthread_mutex_trylock( &_mutex ); }
     
+    inline pthread_mutex_t* mutex(){ return &_mutex; }
 private:
     mutable pthread_mutex_t _mutex;
 };

@@ -235,7 +235,13 @@ void* VideoChat::_play(void* pVideoChat)
     for(int i=1; i<max_audio_buffer_size; i++)
         audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
 
-        
+
+	pthread_cond_t cond;
+	Mutex wait_mutex;
+	pthread_cond_init(&cond, NULL);
+
+	struct timespec timeout;
+
     //
     // while do connect media server
     //
@@ -244,7 +250,9 @@ void* VideoChat::_play(void* pVideoChat)
         env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 1);
 
         if (pThis->m_paused) {
-    		//sleep(100);
+        	clock_gettime(CLOCK_REALTIME, &timeout);
+        	timeout.tv_sec += 1;
+        	pthread_cond_timedwait(&cond, wait_mutex.mutex(), &timeout);
     		continue;
     	}
 
@@ -254,7 +262,10 @@ void* VideoChat::_play(void* pVideoChat)
         if (!get_rtmp_url(pThis) || strlen(pThis->szRTMPUrl) == 0) {
             LOGI("Fetch Media Server Address Failed!");
             env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -1);
-            //sleep(100);
+
+        	clock_gettime(CLOCK_REALTIME, &timeout);
+        	timeout.tv_sec += 1;
+    		pthread_cond_timedwait(&cond, wait_mutex.mutex(), &timeout);
             continue; // connect faild!
         }
 
@@ -266,7 +277,7 @@ void* VideoChat::_play(void* pVideoChat)
 
         uint32_t timestamp = 0;
         uint32_t process_ts = 0;
-        // ѭ�����ա��������
+
         RTMPPacket rtmp_pakt;
         bool bFirstPacket = true;
         while(pThis->m_playing)
@@ -278,7 +289,7 @@ void* VideoChat::_play(void* pVideoChat)
 
             RTMPPacket_Reset(&rtmp_pakt);
             
-            // ���հ�
+            //
             if(!RTMP_GetNextMediaPacket(pThis->pRtmp, &rtmp_pakt)) {
             	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -3);
                 break; // recv error
@@ -375,6 +386,7 @@ void* VideoChat::_play(void* pVideoChat)
     		pThis->pVideoRender->clearFrame();
     }
 
+    pthread_cond_destroy(&cond);
     
     //
     // free audio&video buffer
