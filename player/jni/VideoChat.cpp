@@ -94,6 +94,7 @@ void VideoChat::PausePlayer(bool paused)
     AutoLock autoLock(handleLock);
     AutoLock lock(renderLock);
     m_paused = paused;
+    wait_mutex.Unlock();
     if (pAudioOutput) pAudioOutput->pause(paused);
     if (pVideoRender) pVideoRender->pause(paused);
 }
@@ -105,6 +106,8 @@ int VideoChat::StopPlay()
     if (!m_playing) return -1;
     m_playing = false;
     
+    wait_mutex.Unlock();
+
     pthread_join(thread_play, NULL);
     
     SAFE_DELETE(pSpeexCodec);  LOGI("release SpeexCodec");
@@ -237,7 +240,7 @@ void* VideoChat::_play(void* pVideoChat)
 
 
 	pthread_cond_t cond;
-	Mutex wait_mutex;
+	//Mutex wait_mutex;
 	pthread_cond_init(&cond, NULL);
 
 	struct timespec timeout;
@@ -252,7 +255,7 @@ void* VideoChat::_play(void* pVideoChat)
         if (pThis->m_paused) {
         	clock_gettime(CLOCK_REALTIME, &timeout);
         	timeout.tv_sec += 1;
-        	pthread_cond_timedwait(&cond, wait_mutex.mutex(), &timeout);
+        	pthread_cond_timedwait(&cond, pThis->wait_mutex.mutex(), &timeout);
     		continue;
     	}
 
@@ -265,14 +268,18 @@ void* VideoChat::_play(void* pVideoChat)
 
         	clock_gettime(CLOCK_REALTIME, &timeout);
         	timeout.tv_sec += 1;
-    		pthread_cond_timedwait(&cond, wait_mutex.mutex(), &timeout);
+    		pthread_cond_timedwait(&cond, pThis->wait_mutex.mutex(), &timeout);
             continue; // connect faild!
         }
 
         pThis->pRtmp = my_rtmp_connect(pThis->szRTMPUrl);
         if (pThis->pRtmp == NULL) {
         	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -2);
-            continue; // connect faild!
+
+        	clock_gettime(CLOCK_REALTIME, &timeout);
+        	timeout.tv_sec += 1;
+    		pthread_cond_timedwait(&cond, pThis->wait_mutex.mutex(), &timeout);
+    		continue; // connect faild!
         }
 
         uint32_t timestamp = 0;
@@ -283,7 +290,10 @@ void* VideoChat::_play(void* pVideoChat)
         while(pThis->m_playing)
         {
         	if (pThis->m_paused) {
-        		sleep(100);
+            	clock_gettime(CLOCK_REALTIME, &timeout);
+            	timeout.tv_sec += 1;
+        		pthread_cond_timedwait(&cond, pThis->wait_mutex.mutex(), &timeout);
+
         		break; // paused to reconnect
         	}
 

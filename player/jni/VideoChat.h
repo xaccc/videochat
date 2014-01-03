@@ -69,6 +69,7 @@ private:
 
     Mutex handleLock;
     Mutex renderLock;
+    Mutex wait_mutex;
     
     bool m_playing;
     bool m_paused;
