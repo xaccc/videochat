@@ -169,21 +169,22 @@ package {
             cam = Camera.getCamera();
             // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            cam.setMode(320,240,12);
-            cam.setQuality(0,50);
+            cam.setMode(320,240,15);
+            cam.setQuality(144000,0);
         }
         
         private function setMic():void {
             mic = Microphone.getMicrophone();
             // Security.showSettings(SecurityPanel.MICROPHONE);
             mic.codec = "Speex";
-            mic.encodeQuality = 8;
-            mic.gain = 85;
-            mic.rate = 11;
+            mic.encodeQuality = 7;
+            mic.noiseSuppressionLevel = 0;
+            //mic.gain = 50;
+            //mic.rate = 11;
             mic.setSilenceLevel(0, -1);
             mic.framesPerPacket = 3;
             mic.setUseEchoSuppression(false);
-            mic.enableVAD = true;
+            //mic.enableVAD = true;
         }
         
         private function setVideo():void {

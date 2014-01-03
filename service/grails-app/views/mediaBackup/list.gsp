@@ -6,6 +6,10 @@
 		<meta name="layout" content="main">
 		<g:set var="entityName" value="${message(code: 'mediaBackup.label', default: 'MediaBackup')}" />
 		<title><g:message code="default.list.label" args="[entityName]" /></title>
+		<script src="flowplayer-3.2.13.min.js"></script>
+		<script language="JavaScript">
+			flowplayer("player", "path/to/the/flowplayer-3.2.18.swf");
+		</script>
 	</head>
 	<body>
 		<a href="#list-mediaBackup" class="skip" tabindex="-1"><g:message code="default.link.skip.label" default="Skip to content&hellip;"/></a>
@@ -37,6 +41,8 @@
 						<g:sortableColumn property="first" title="${message(code: 'mediaBackup.first.label', default: 'First')}" />
 					
 						<g:sortableColumn property="backupDate" title="${message(code: 'mediaBackup.backupDate.label', default: 'Backup Date')}" />
+
+						<th>操作</th>
 					
 					</tr>
 				</thead>
@@ -55,6 +61,8 @@
 						<td><g:formatBoolean boolean="${mediaBackupInstance.first}" /></td>
 					
 						<td><g:formatDate date="${mediaBackupInstance.backupDate}" /></td>
+
+						<td>查看</td>
 					
 					</tr>
 				</g:each>
@@ -63,6 +71,12 @@
 			<div class="pagination">
 				<g:paginate total="${mediaBackupInstanceTotal}" params="[id:params.id]" />
 			</div>
+		</div>
+		<div class="flowplayer">
+		   <video>
+		      <source type="video/webm" src="http://mydomain.com/path/to/intro.webm">
+		      <source type="video/mp4"  src="http://mydomain.com/path/to/intro.mp4">
+		   </video>
 		</div>
 	</body>
 </html>

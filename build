@@ -6,7 +6,7 @@ if [ "$1" = "-debug" ]; then
   OUTDIR=bin-debug
 fi
 
-#compc $* -source-path=src -output '$OUTDIR\SelectDevice.swc' 'SelectDevice'
+#compc $* -source-path=src -output "$OUTDIR\SelectDevice.swc" "SelectDevice"
 
-mxmlc $* -output '$OUTDIR/Producer.swf' 'src/Producer.as'
-mxmlc $* -output '$OUTDIR/Consumer.swf' 'src/Consumer.as'
+mxmlc $* -output "$OUTDIR/Producer.swf" "src/Producer.as"
+mxmlc $* -output "$OUTDIR/Consumer.swf" "src/Consumer.as"

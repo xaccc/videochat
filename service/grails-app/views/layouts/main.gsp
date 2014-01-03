@@ -15,8 +15,8 @@
 	<link rel="stylesheet" href="${resource(dir: 'css', file: 'main.css')}" type="text/css">
 	<link rel="stylesheet" href="${resource(dir: 'css', file: 'mobile.css')}" type="text/css">
     <g:javascript library="jquery"/>
-	<g:layoutHead/>
 	<r:layoutResources />
+	<g:layoutHead/>
 </head>
 <body>
 	<div id="grailsLogo" role="banner"><p style="line-height:3em;font-size:1.5em;padding-left:1em;">流媒体平台管理器</p></div>
