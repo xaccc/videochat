@@ -148,7 +148,7 @@ package {
                 if (cameraSettings == null)
                     cameraSettings = new H264VideoStreamSettings(); 
                     
-                cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_3_1);
+                cameraSettings.setProfileLevel(H264Profile.MAIN, H264Level.LEVEL_3_1);
                 nsOut.videoStreamSettings = cameraSettings;
                 
                 nsOut.attachAudio(mic);
@@ -169,9 +169,9 @@ package {
             cam = Camera.getCamera();
             // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            //cam.setMode(240,180,10);
             cam.setMode(320,240,10);
-            cam.setQuality(18000,0); // Bytes per second
+            //cam.setMode(320,240,15);
+            cam.setQuality(22000,0); // Bytes per second
         }
         
         private function setMic():void {
