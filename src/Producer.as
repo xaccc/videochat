@@ -168,10 +168,10 @@ package {
         private function setCam():void {
             cam = Camera.getCamera();
             // Security.showSettings(SecurityPanel.CAMERA);
-            cam.setKeyFrameInterval(4);
+            cam.setKeyFrameInterval(5);
             //cam.setMode(240,180,10);
-            cam.setMode(320,240,8);
-            cam.setQuality(14000,0); // Bytes per second
+            cam.setMode(320,240,10);
+            cam.setQuality(18000,0); // Bytes per second
         }
         
         private function setMic():void {
@@ -180,10 +180,10 @@ package {
             mic.codec = "Speex";
             mic.encodeQuality = 8;
             mic.noiseSuppressionLevel = 0;
-            //mic.gain = 50;
+            mic.gain = 40;
             //mic.rate = 11;
             mic.setSilenceLevel(0, -1);
-            mic.framesPerPacket = 3;
+            //mic.framesPerPacket = 3;
             mic.setUseEchoSuppression(false);
             mic.enableVAD = false;
         }

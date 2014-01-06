@@ -1,0 +1,4 @@
+#!/bin/sh
+
+scp -P 36001 bin-release/*.swf root@rm.boboxiu.tv:/usr/local/nginx/html/swf/
+

@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout.LayoutParams;
@@ -26,6 +27,8 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 
 		setContentView(R.layout.activity_main);
 
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON, WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		
 		// create render
 		mView = new VideoChat.View(getApplication());
 		addContentView(mView, new LayoutParams(LayoutParams.MATCH_PARENT, 480));

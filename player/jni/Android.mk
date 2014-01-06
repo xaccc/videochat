@@ -16,6 +16,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+
 LOCAL_ARM_MODE  := arm
 
 #LOCAL_ARM_NEON  := true
@@ -38,27 +39,24 @@ LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
 
 APP_CPPFLAGS := -S -frtti -fexceptions
 
-#LOCAL_STATIC_LIBRARIES += libOpenSLES libGLESv2 liblog libandroid libspeex libspeexdsp librtmp
-
-
 
 # for native audio
-LOCAL_LDLIBS    += -lOpenSLES
-LOCAL_LDLIBS	+= -lGLESv2
+LOCAL_LDFLAGS    += -lOpenSLES
+LOCAL_LDFLAGS	+= -lGLESv2
 # for logging
-LOCAL_LDLIBS    += -llog
+LOCAL_LDFLAGS    += -llog
 # for native asset manager
-LOCAL_LDLIBS    += -landroid
+LOCAL_LDFLAGS    += -landroid
 # for Speex
-LOCAL_LDLIBS    += -lspeex -lspeexdsp
+LOCAL_LDFLAGS    += -lspeex -lspeexdsp
 # for rtmpdump
-LOCAL_LDLIBS    += -lrtmp
+LOCAL_LDFLAGS    += -lrtmp
 # for x264
 #LOCAL_LDLIBS    += -lx264
 
 # for ffmpeg
-LOCAL_CFLAGS    := -DUSEFFMPEG
-LOCAL_LDLIBS    += -lavcodec -lavutil -lpostproc
+LOCAL_CFLAGS     += -DUSEFFMPEG
+LOCAL_LDFLAGS    += -lavcodec -lavutil -lpostproc
 #LOCAL_SRC_FILES :=  h264dec/cabac.cpp \
 #                    h264dec/common.cpp \
 #                    h264dec/dsputil.cpp \
