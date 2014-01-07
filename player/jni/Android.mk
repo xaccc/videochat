@@ -23,6 +23,7 @@ LOCAL_ARM_MODE  := arm
 #LOCAL_CFLAGS    := -DHAVE_NEON=1
 
 #LOCAL_CFLAGS    := -DUSEPOSTPROC
+#LOCAL_LDFLAGS    +=  -lpostproc
 
 LOCAL_MODULE    :=  vc
 LOCAL_SRC_FILES :=  VideoChat.cpp \
@@ -56,7 +57,7 @@ LOCAL_LDFLAGS    += -lrtmp
 
 # for ffmpeg
 LOCAL_CFLAGS     += -DUSEFFMPEG
-LOCAL_LDFLAGS    += -lavcodec -lavutil -lpostproc
+LOCAL_LDFLAGS    += -lavcodec -lavutil
 #LOCAL_SRC_FILES :=  h264dec/cabac.cpp \
 #                    h264dec/common.cpp \
 #                    h264dec/dsputil.cpp \

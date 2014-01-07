@@ -16,6 +16,7 @@ package {
     import flash.text.TextFormat;
     import flash.filters.DropShadowFilter;
     import flash.utils.*;
+    import flash.events.*;
     
     import flash.system.Security;
     import flash.system.SecurityPanel;
@@ -33,8 +34,10 @@ package {
         private var vidLocal:Video;
         private var cameraSettings:H264VideoStreamSettings;
         private var established:Boolean = false;
+        private var minuteTimer:Timer = new Timer(1000, 0);
+        private var fieldSpeed:TextField = new TextField();
         
-        private var remote_host:String = "localhost";
+        private var remote_host:String = "rm.boboxiu.tv";
         private var remote_port:int = 80;
         private var remote_app:String = "/videochat"
         
@@ -45,14 +48,14 @@ package {
 
         public function Producer() {
 
-            if (root.loaderInfo.parameters["host"])
-                remote_host = stage.loaderInfo.parameters["host"];
-            if (root.loaderInfo.parameters["port"])
-                remote_port = parseInt(stage.loaderInfo.parameters["port"]);
+            //if (root.loaderInfo.parameters["host"])
+            //    remote_host = stage.loaderInfo.parameters["host"];
+            //if (root.loaderInfo.parameters["port"])
+            //    remote_port = parseInt(stage.loaderInfo.parameters["port"]);
             if (root.loaderInfo.parameters["uid"])
                 uid = stage.loaderInfo.parameters["uid"];
-            if (root.loaderInfo.parameters["app"])
-                remote_app = stage.loaderInfo.parameters["app"];
+            //if (root.loaderInfo.parameters["app"])
+            //    remote_app = stage.loaderInfo.parameters["app"];
             
             init();
             
@@ -61,9 +64,23 @@ package {
 
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            if (remote_host == "122.0.67.180") {
+            if (remote_host == "rm.boboxiu.tv") {
                 api.publishUrl(uid);
             }
+
+            minuteTimer.addEventListener(TimerEvent.TIMER, onTick);
+        }
+
+        public function onTick(event:TimerEvent):void {
+            if(nsOut.info.currentBytesPerSecond < 10000) {
+                fieldSpeed.textColor = 0xFF0000;
+                fieldSpeed.filters[0].color = 0xFFFFFF;
+            } else {
+                fieldSpeed.textColor = 0x00FF00;
+                fieldSpeed.filters[0].color = 0xFFFFFF;
+            }
+
+            fieldSpeed.text = int(nsOut.info.currentBytesPerSecond*8/1024) + "kbps";
         }
         
         public function apiCallback(funcName:String, response:Object):void {
@@ -107,24 +124,24 @@ package {
             setVideo();
         
             // info text
-            /*
             var myformat:TextFormat = new TextFormat();
-            myformat.size = 24;
-            myformat.align="center";                
-            myformat.font = "Wingdings";
-            var fieldSpeed:TextField = new TextField();
-            fieldSpeed.x = 10;
+            myformat.size = 20;
+            myformat.align="right";
+            myformat.bold = true;
+            myformat.font = "Arial";
+            
+            fieldSpeed.x = 0;
             fieldSpeed.y = 10;
+            fieldSpeed.width = stage.stageWidth - 10;
             fieldSpeed.visible = true;
-            fieldSpeed.text = "●";
-            fieldSpeed.textColor = 0xFF0000; 
+            fieldSpeed.text = "";
+            fieldSpeed.textColor = 0x00FF00; 
             fieldSpeed.selectable = false;
-            fieldSpeed.autoSize = TextFieldAutoSize.LEFT;
-            fieldSpeed.setTextFormat(myformat);
+            fieldSpeed.autoSize = TextFieldAutoSize.RIGHT;
+            fieldSpeed.defaultTextFormat = myformat;
             fieldSpeed.filters = [new DropShadowFilter()];
-            fieldSpeed.filters[0].color = 0xFFFFFF
+            fieldSpeed.filters[0].color = 0xFFFFFF;
             addChild(fieldSpeed);
-            */
         }
         
         // bandwidth detection on the server
@@ -148,7 +165,7 @@ package {
                 if (cameraSettings == null)
                     cameraSettings = new H264VideoStreamSettings(); 
                     
-                cameraSettings.setProfileLevel(H264Profile.MAIN, H264Level.LEVEL_3_1);
+                cameraSettings.setProfileLevel(H264Profile.BASELINE, H264Level.LEVEL_3_1);
                 nsOut.videoStreamSettings = cameraSettings;
                 
                 nsOut.attachAudio(mic);
@@ -156,6 +173,7 @@ package {
                 nsOut.publish(rtmpInstance, "live");
                 
                 established = true;
+                minuteTimer.start();
             } else if (established && event.info.code == "NetConnection.Connect.Closed") {
                 nc.connect(rtmpURL, myuid);
             } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {

@@ -245,6 +245,7 @@ void* VideoChat::_play(void* pVideoChat)
 
 	struct timespec timeout;
 
+
     //
     // while do connect media server
     //
@@ -323,27 +324,34 @@ void* VideoChat::_play(void* pVideoChat)
             	bFirstPacket = false;
             	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 3);
             }
-/*
-            if (rtmp_pakt.m_nTimeStamp - timestamp > 30000){ // drop packet for pass 3 seconds
+
+            /*
+            if (rtmp_pakt.m_nTimeStamp < timestamp){
             	RTMPPacket_Free(&rtmp_pakt);
-            	LOGE("Drop packet...(TS:%d)",rtmp_pakt.m_nTimeStamp);
-            	if (time(0) - process_ts > 60000){
-            		// reset packet timestamp
-            		timestamp = rtmp_pakt.m_nTimeStamp;
-            		LOGE("reset packet timestamp...(TS:%d)",rtmp_pakt.m_nTimeStamp);
-            	}
+            	LOGE("Drop packet...(TS:%d, A=%d,V=%d)",rtmp_pakt.m_nTimeStamp,
+            			rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO,
+            			rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO);
             	continue;
             }
-*/
+            */
+
             timestamp = rtmp_pakt.m_nTimeStamp;
             process_ts = time(0);
 
             if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO && 0xB2 == rtmp_pakt.m_body[0])
             {
                 // Speex Voice Data
-                int dec_audio_count = pThis->pSpeexCodec->decode(rtmp_pakt.m_body + 1, rtmp_pakt.m_nBodySize - 1, audio_buffer);
-                pThis->pAudioOutput->play(audio_buffer[0], audio_frame_size*dec_audio_count);
+                int dec_audio_count = pThis->pSpeexCodec->decode(rtmp_pakt.m_nTimeStamp, rtmp_pakt.m_body + 1, rtmp_pakt.m_nBodySize - 1, audio_buffer);
+                if (dec_audio_count > 0)
+                	pThis->pAudioOutput->play(audio_buffer[0], audio_frame_size*dec_audio_count);
 
+                /*
+                while(1){
+                	dec_audio_count = pThis->pSpeexCodec->decode(rtmp_pakt.m_nTimeStamp, 0, 0, audio_buffer);
+                	if (dec_audio_count <= 0) break;
+                	pThis->pAudioOutput->play(audio_buffer[0], audio_frame_size*dec_audio_count);
+                }
+                */
             }
             else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO && 7 == (rtmp_pakt.m_body[0] & 0x0f))
             {

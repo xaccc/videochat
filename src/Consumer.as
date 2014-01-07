@@ -24,7 +24,7 @@ package
         
         private var title:String = "直播";
         
-        private var remote_host:String = "localhost";
+        private var remote_host:String = "rm.boboxiu.tv";
         private var remote_port:int = 80;
         private var remote_app:String = "/videochat"
         
@@ -35,8 +35,8 @@ package
 
         public function Consumer()
         {
-            if (root.loaderInfo.parameters["host"])
-                remote_host = stage.loaderInfo.parameters["host"];
+            //if (root.loaderInfo.parameters["host"])
+            //    remote_host = stage.loaderInfo.parameters["host"];
             if (root.loaderInfo.parameters["port"])
                 remote_port = parseInt(stage.loaderInfo.parameters["port"]);
             if (root.loaderInfo.parameters["uid"])
@@ -53,7 +53,7 @@ package
             
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
-            if (remote_host == "122.0.67.180") {
+            if (remote_host == "rm.boboxiu.tv") {
                 api.liveUrl(uid);
             }
         }

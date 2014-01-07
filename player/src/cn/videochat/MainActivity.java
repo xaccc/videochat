@@ -36,7 +36,7 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 		// controls
 		txtUserId = (EditText) findViewById(R.id.txtUrl);
 		txtLog = (EditText) findViewById(R.id.txtInfo);
-		txtUserId.setText("user123");
+		txtUserId.setText("879905");
 		btnPlay = (Button) findViewById(R.id.btnPlay);
 		btnStop = (Button) findViewById(R.id.btnStop);
 		
