@@ -7,8 +7,8 @@ IF /i "%DEBUG%"=="-debug" (SET OUTDIR=bin-debug)
 
 REM compc %DEBUG% -source-path=src -output "%OUTDIR%\SelectDevice.swc" "SelectDevice"
 
-mxmlc %DEBUG% -output "%OUTDIR%\Producer.swf" "src\Producer.as"
-mxmlc %DEBUG% -output "%OUTDIR%\Consumer.swf" "src\Consumer.as"
+call mxmlc %DEBUG% -output "%OUTDIR%\Producer.swf" "src\Producer.as"
+call mxmlc %DEBUG% -output "%OUTDIR%\Consumer.swf" "src\Consumer.as"
 
 mkdir C:\AppServ\www\videochat
 

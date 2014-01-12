@@ -1,12 +1,11 @@
 package
 {
     import flash.display.Sprite;
-    import flash.events.Event;
-    import flash.events.NetStatusEvent;
     import flash.net.NetConnection;
     import flash.net.NetStream;
     import flash.media.Video;
     import flash.utils.*;
+    import flash.events.*;
     
     import flash.text.TextField;
     import flash.text.TextFieldAutoSize;
@@ -17,12 +16,12 @@ package
     {
         private var rtmpURL:String;
         private var rtmpInstance:String;
-        private var nc:NetConnection;
+        private var nc:NetConnection = null;
         private var nsIn:NetStream;
         private var vidStream:Video;
         private var established:Boolean = false;
-        
-        private var title:String = "直播";
+        private var minuteTimer:Timer = new Timer(1000, 0);
+        private var fieldSpeed:TextField = new TextField();
         
         private var remote_host:String = "rm.boboxiu.tv";
         private var remote_port:int = 80;
@@ -43,19 +42,67 @@ package
                 uid = stage.loaderInfo.parameters["uid"];
             if (root.loaderInfo.parameters["app"])
                 remote_app = stage.loaderInfo.parameters["app"];
-            if (root.loaderInfo.parameters["name"])
-                title = stage.loaderInfo.parameters["name"];
             
             init();
             
             if (api == null)
                 api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
             
-            Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
+            //Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
             if (remote_host == "rm.boboxiu.tv") {
                 api.liveUrl(uid);
             }
+
+            minuteTimer.addEventListener(TimerEvent.TIMER, onTick);
+            minuteTimer.start();
+        }
+        
+        private var zeroTimes:int = 0;
+        public function onTick(event:TimerEvent):void {
+            if (zeroTimes > 5) {
+                nc.close();
+                zeroTimes = 0;
+            }
+
+            if(nc != null && nc.connected) {
+                if(nsIn.info.currentBytesPerSecond > int(150*1024/8)) {
+                    fieldSpeed.textColor = 0x00FF00;
+                    fieldSpeed.filters[0].color = 0xFFFFFF;
+                    fieldSpeed.text = "网络良好";
+                } else if(nsIn.info.currentBytesPerSecond > int(120*1024/8)) {
+                    fieldSpeed.textColor = 0xFF8800;
+                    fieldSpeed.filters[0].color = 0xFFFFFF;
+                    fieldSpeed.text = "网络一般";
+                } else {
+                    fieldSpeed.textColor = 0xFF0000;
+                    fieldSpeed.filters[0].color = 0xFFFFFF;
+                    fieldSpeed.text = "网络质量差";
+                }
+
+                if (nsIn.info.currentBytesPerSecond == 0)
+                    zeroTimes ++;
+                else
+                    zeroTimes = 0;
+                
+            } else if (established){
+                established = false;
+                fieldSpeed.textColor = 0xFF0000;
+                fieldSpeed.text = "重新连接网络...";
+                nc = null;
+                nsIn = null;
+                api.liveUrl(uid);
+            }
+
+            /*
+            Log.trace("==============================================");
+            Log.trace("currentBytesPerSecond = ", int(nsIn.info.currentBytesPerSecond*8/1024));
+            Log.trace("connected = ", nc.connected);
+            Log.trace("established = ", established);
+            Log.trace("dataBytesPerSecond = ", nsIn.info.dataBytesPerSecond);
+            Log.trace("videoLossRate = ", nsIn.info.videoLossRate);
+            Log.trace("audioLossRate = ", nsIn.info.audioLossRate);
+            */
         }
         
         public function apiCallback(funcName:String, response:Object):void {
@@ -81,9 +128,13 @@ package
                     nc.client = this;
                 }
                 
-                myuid = "UID="+HTTPCookie.getUID();
-                nc.connect(rtmpURL, myuid);
-                
+                if (response.Session) {
+                    //Log.trace('URL: ',rtmpURL,'/',rtmpInstance);
+                    myuid = "UID="+HTTPCookie.getUID();
+                    nc.connect(rtmpURL, myuid);
+                } else {
+                    fieldSpeed.text = "主播不在线";
+                }
             }
         }
 
@@ -91,25 +142,25 @@ package
         {
             setVideo();
 
-            /*
             // info text
             var myformat:TextFormat = new TextFormat();
-            myformat.size = 24;
-            myformat.align="center";                
-            myformat.font = "Wingdings";
-            var fieldSpeed:TextField = new TextField();
-            fieldSpeed.x = 5;
-            fieldSpeed.y = 5;
+            myformat.size = 18;
+            myformat.align="right";
+            myformat.bold = true;
+            myformat.font = "微软雅黑";
+            
+            fieldSpeed.x = 0;
+            fieldSpeed.y = 10;
+            fieldSpeed.width = stage.stageWidth - 10;
             fieldSpeed.visible = true;
-            fieldSpeed.text = title;
+            fieldSpeed.text = "";
             fieldSpeed.textColor = 0x00FF00; 
             fieldSpeed.selectable = false;
-            fieldSpeed.autoSize = TextFieldAutoSize.LEFT;
-            fieldSpeed.setTextFormat(myformat);
+            fieldSpeed.autoSize = TextFieldAutoSize.RIGHT;
+            fieldSpeed.defaultTextFormat = myformat;
             fieldSpeed.filters = [new DropShadowFilter()];
-            fieldSpeed.filters[0].color = 0xFFFFFF
+            fieldSpeed.filters[0].color = 0xFFFFFF;
             addChild(fieldSpeed);
-            */
         }
         
         // bandwidth detection on the server
@@ -128,11 +179,12 @@ package
             if (connected) {
                 if (nsIn == null)
                     nsIn = new NetStream(nc);
+                nsIn.backBufferTime = 2;
+                nsIn.bufferTime = 2;
                 nsIn.play(rtmpInstance);
                 vidStream.attachNetStream(nsIn);
                 established = true;
             } else if (established && event.info.code == "NetConnection.Connect.Closed") {
-                nc.connect(rtmpURL, myuid);
             } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
             } else if (established && event.info.code == "NetConnection.Connect.Failed") {
             }

@@ -1,8 +1,6 @@
 package {
     
     import flash.display.Sprite;
-    import flash.events.Event;
-    import flash.events.NetStatusEvent;
     import flash.media.Camera;
     import flash.media.H264Level;
     import flash.media.H264Profile;
@@ -72,15 +70,32 @@ package {
         }
 
         public function onTick(event:TimerEvent):void {
-            if(nsOut.info.currentBytesPerSecond < 10000) {
+            if(nc != null && nc.connected) {
+                if(nsOut.info.currentBytesPerSecond > int(150*1024/8)) {
+                    fieldSpeed.textColor = 0x00FF00;
+                } else if(nsOut.info.currentBytesPerSecond > int(120*1024/8)) {
+                    fieldSpeed.textColor = 0xFF8800;
+                } else {
+                    fieldSpeed.textColor = 0xFF0000;
+                }
+
+                fieldSpeed.text = int(nsOut.info.currentBytesPerSecond*8/1024) + "kbps";
+            } else if (established){
+                established = false;
                 fieldSpeed.textColor = 0xFF0000;
-                fieldSpeed.filters[0].color = 0xFFFFFF;
-            } else {
-                fieldSpeed.textColor = 0x00FF00;
-                fieldSpeed.filters[0].color = 0xFFFFFF;
+                fieldSpeed.text = "重新连接网络...";
+                nc.connect(rtmpURL, myuid);
             }
 
-            fieldSpeed.text = int(nsOut.info.currentBytesPerSecond*8/1024) + "kbps";
+            /*
+            Log.trace("==============================================");
+            Log.trace("currentBytesPerSecond = ", int(nsOut.info.currentBytesPerSecond*8/1024));
+            Log.trace('connected = ', nc.connected);
+            Log.trace('established = ', established);
+            Log.trace('dataBytesPerSecond = ', nsOut.info.dataBytesPerSecond);
+            Log.trace('videoLossRate = ', nsOut.info.videoLossRate);
+            Log.trace('audioLossRate = ', nsOut.info.audioLossRate);           
+            */ 
         }
         
         public function apiCallback(funcName:String, response:Object):void {
@@ -97,7 +112,7 @@ package {
                               + "/" + response.Application;
                               
                     rtmpInstance = response.Session;
-                    Log.trace(rtmpURL);
+                    //Log.trace(rtmpURL);
                 } else {
                     throw new Error("服务通讯故障");
                     Log.trace("服务通讯故障");
@@ -125,7 +140,7 @@ package {
         
             // info text
             var myformat:TextFormat = new TextFormat();
-            myformat.size = 20;
+            myformat.size = 18;
             myformat.align="right";
             myformat.bold = true;
             myformat.font = "Arial";
@@ -175,7 +190,6 @@ package {
                 established = true;
                 minuteTimer.start();
             } else if (established && event.info.code == "NetConnection.Connect.Closed") {
-                nc.connect(rtmpURL, myuid);
             } else if (established && event.info.code == "NetConnection.Connect.NetworkChange") {
             } else if (established && event.info.code == "NetConnection.Connect.Failed") {
             }
@@ -198,9 +212,9 @@ package {
             mic.codec = "Speex";
             mic.encodeQuality = 8;
             mic.noiseSuppressionLevel = 0;
-            mic.gain = 40;
+            mic.gain = 45;
             //mic.rate = 11;
-            mic.setSilenceLevel(0, -1);
+            mic.setSilenceLevel(0, 0);
             //mic.framesPerPacket = 3;
             mic.setUseEchoSuppression(false);
             mic.enableVAD = false;

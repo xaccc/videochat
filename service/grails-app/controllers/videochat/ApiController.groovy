@@ -280,7 +280,7 @@ class ApiController {
             Request request = Request.Get(new URI("http", null, 
                 grailsApplication.config.postLog.Host, 
                 grailsApplication.config.postLog.Port, 
-                 grailsApplication.config.postLog.Path, 
+                grailsApplication.config.postLog.Path, 
                 query.toString(), null));
             Future<Content> future = async.execute(request);
         } catch(Exception e) {

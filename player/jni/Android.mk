@@ -37,6 +37,7 @@ LOCAL_SRC_FILES :=  VideoChat.cpp \
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
+#LOCAL_C_INCLUDES +=  ${ANDROID_NDK}/sources/cxx-stl/stlport/stlport
 
 APP_CPPFLAGS := -S -frtti -fexceptions
 

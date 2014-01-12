@@ -35,9 +35,10 @@ class MyApplicationAdapter extends ApplicationAdapter {
 
     private Hashtable<String,String> properties = new Hashtable<String,String>();
     
-    String apiHost = "localhost";
-    String apiPostLog = "/service/api/postlog";
-    int    apiPort = 80;
+    String  apiHost = "localhost";
+    String  apiPostLog = "/service/api/postlog";
+    int     apiPort = 80;
+    Boolean isRecord = true;
     
     private Logger log = Logger.getLogger(MyApplicationAdapter.class);
     
@@ -62,6 +63,7 @@ class MyApplicationAdapter extends ApplicationAdapter {
                 log.info("Property: " + strKey + " = " + pps.getProperty(strKey).toString());
             }
 
+            if (properties.containsKey("isRecord")) isRecord = new Boolean(properties.get("isRecord"));
             if (properties.containsKey("apiHost")) apiHost = properties.get("apiHost");
             if (properties.containsKey("apiPort")) apiPort = new Integer(properties.get("apiPort"));
             if (properties.containsKey("apiPostLog")) {
@@ -186,9 +188,11 @@ class MyApplicationAdapter extends ApplicationAdapter {
             query.append("&name=");
             query.append(broadcastStream.getPublishedName());
 
-            AutoRecorder task = new AutoRecorder(this, broadcastStream, properties);
-            recorderTaskList.put(broadcastStream, task);
-            stream.addStreamListener((IStreamListener)task);
+            if (isRecord) {
+                AutoRecorder task = new AutoRecorder(this, broadcastStream, properties);
+                recorderTaskList.put(broadcastStream, task);
+                stream.addStreamListener((IStreamListener)task);
+            }
         }
 
         PostLog(query);

@@ -33,19 +33,19 @@ extern "C" {
 #define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__))
 
-#ifdef  NDEBUG
-#undef  LOGI
-#define LOGI(...)
-#endif
+//#ifdef  NDEBUG
+//#undef  LOGI
+//#define LOGI(...)
+//#endif
 
 #define SAFE_DELETE(x) if(x) {delete x; x=NULL;}
 
 #ifndef min
-#define min(a,b) (a>b?b:a)
+#define min(a,b) ((a)>(b)?(b):(a))
 #endif
 
 #ifndef max
-#define max(a,b) (a>b?a:b)
+#define max(a,b) ((a)>(b)?(a):(b))
 #endif
 
 //

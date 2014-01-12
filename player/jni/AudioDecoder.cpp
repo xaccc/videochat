@@ -1,8 +1,6 @@
 #include "AudioDecoder.h"
 
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 //
 // class SpeexCodec 实现
@@ -11,89 +9,147 @@
 
 SpeexCodec::SpeexCodec()
 {
-    speex_bits_init(&dbits);
     dec_state = speex_decoder_init(&speex_wb_mode);
     speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
 
     // disable perceptual enhancer
     // int enh=0;
     // speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
-
-    dec_frame = (char*)malloc(output_buffer_size());
-
-    jitter = jitter_buffer_init(5); //???
-    jitter_buffer_reset(jitter);
-
+#if USE_SPEEX_JITTER
+    speex_jitter_init(&speexJitter, dec_state, dec_frame_size);
+#else
+    speex_bits_init(&dbits);
+#endif
 }
 
 SpeexCodec::~SpeexCodec()
 {
+#if USE_SPEEX_JITTER
+    speex_jitter_destroy(&speexJitter);
+#else
     speex_bits_destroy(&dbits);
+#endif
+
     speex_decoder_destroy(dec_state);
-    jitter_buffer_destroy(jitter);
-    free(dec_frame);
 }
-
-
-#ifdef USE_JITTER
-
-int SpeexCodec::decode(uint32_t ts, char* data, int data_size, short** output_buffer)
-{
-    if (output_buffer == NULL || output_buffer[0] == NULL)
-        return -1;
-
-    speex_bits_set_bit_buffer(&dbits, data, data_size);
-    
-    int frames_count = 0;
-    while(speex_bits_remaining(&dbits) > 0 && frames_count < 100) {
-        if (speex_decode_int(dec_state, &dbits, (short *)dec_frame))
-            break; // error
-            
-		JitterBufferPacket packet;
-		packet.data = dec_frame;
-		packet.len = output_buffer_size();
-		packet.timestamp = ts;
-		packet.span = 5; //???
-		packet.sequence = 0;
-		packet.user_data = 0;
-		jitter_buffer_put(jitter, &packet);
-
-        frames_count++;
-    }
-    
-    JitterBufferPacket outpacket;
-
-    int start_offset;
-    outpacket.data = dec_frame;
-    outpacket.len = output_buffer_size();
-    if(JITTER_BUFFER_OK != jitter_buffer_get(jitter, &outpacket, 5, &start_offset)) {
-    	return 0;
-    }
-
-    jitter_buffer_tick(jitter);
-    memcpy(output_buffer[0], dec_frame, output_buffer_size());
-
-    return 1;
-}
-
-#else // USE_JITTER
 
 int SpeexCodec::decode(uint32_t ts, char* data, int data_size, short** output_buffer)
 {
     if (output_buffer == NULL || output_buffer[0] == NULL)
         return 0;
 
+#if USE_SPEEX_JITTER
+    speex_jitter_put(&speexJitter, data, data_size, ts);
+
+    int start_offset = 0;
+    speex_jitter_get(&speexJitter, output_buffer[0], &start_offset);
+    speex_jitter_get(&speexJitter, output_buffer[1], &start_offset);
+    //speex_jitter_get(&speexJitter, output_buffer[3], &start_offset);
+    return 2;
+#else // USE_SPEEX_JITTER
     speex_bits_set_bit_buffer(&dbits, data, data_size);
 
     int frames_count = 0;
     while(speex_bits_remaining(&dbits) > 0 && frames_count < 100) {
-        if (speex_decode_int(dec_state, &dbits, (short *)output_buffer[frames_count]))
+        if (speex_decode_int(dec_state, &dbits, (short *)output_buffer[frames_count])) {
+        	LOGE("[SpeexCodec] deocde faild!");
             break; // error
+        }
 
         frames_count++;
     }
 
     return frames_count;
+#endif //USE_SPEEX_JITTER
+
 }
 
-#endif // USE_JITTER
+
+#if USE_SPEEX_JITTER
+
+void speex_jitter_init(SpeexJitter *jitter, void *decoder, int sampling_rate)
+{
+   jitter->dec = decoder;
+   speex_decoder_ctl(decoder, SPEEX_GET_FRAME_SIZE, &jitter->frame_size);
+
+   jitter->packets = jitter_buffer_init(jitter->frame_size);
+
+   speex_bits_init(&jitter->current_packet);
+   jitter->valid_bits = 0;
+
+}
+
+void speex_jitter_destroy(SpeexJitter *jitter)
+{
+   jitter_buffer_destroy(jitter->packets);
+   speex_bits_destroy(&jitter->current_packet);
+}
+
+void speex_jitter_put(SpeexJitter *jitter, char *packet, int len, int timestamp)
+{
+   JitterBufferPacket p;
+   p.data = packet;
+   p.len = len;
+   p.timestamp = timestamp;
+   p.span = jitter->frame_size;
+   jitter_buffer_put(jitter->packets, &p);
+}
+
+void speex_jitter_get(SpeexJitter *jitter, spx_int16_t *out, int *current_timestamp)
+{
+   int i;
+   int ret;
+   spx_int32_t activity;
+   char data[2048];
+   JitterBufferPacket packet;
+   packet.data = data;
+   packet.len = 2048;
+
+   if (jitter->valid_bits)
+   {
+      /* Try decoding last received packet */
+      ret = speex_decode_int(jitter->dec, &jitter->current_packet, out);
+      if (ret == 0)
+      {
+         jitter_buffer_tick(jitter->packets);
+         return;
+      } else {
+         jitter->valid_bits = 0;
+      }
+   }
+
+   ret = jitter_buffer_get(jitter->packets, &packet, jitter->frame_size, NULL);
+
+   if (ret != JITTER_BUFFER_OK)
+   {
+      /* No packet found */
+
+      /*fprintf (stderr, "lost/late frame\n");*/
+      /*Packet is late or lost*/
+      speex_decode_int(jitter->dec, NULL, out);
+   } else {
+      speex_bits_read_from(&jitter->current_packet, packet.data, packet.len);
+      /* Decode packet */
+      ret = speex_decode_int(jitter->dec, &jitter->current_packet, out);
+      if (ret == 0)
+      {
+         jitter->valid_bits = 1;
+      } else {
+         /* Error while decoding */
+         for (i=0;i<jitter->frame_size;i++)
+            out[i]=0;
+      }
+   }
+   //speex_decoder_ctl(jitter->dec, SPEEX_GET_ACTIVITY, &activity);
+   //if (activity < 30)
+   //   jitter_buffer_update_delay(jitter->packets, &packet, NULL);
+   jitter_buffer_tick(jitter->packets);
+}
+
+int speex_jitter_get_pointer_timestamp(SpeexJitter *jitter)
+{
+   return jitter_buffer_get_pointer_timestamp(jitter->packets);
+}
+
+
+#endif //USE_SPEEX_JITTER
