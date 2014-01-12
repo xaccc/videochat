@@ -52,7 +52,11 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 		btnStop.setOnClickListener(this);
 
 		// test fuck
-		startPlay("user123");
+		txtLog.post(new Runnable(){
+			public void run() {
+				startPlay(txtUserId.getText().toString());
+			}});
+		
 	}
 
 	

@@ -25,6 +25,7 @@ public:
     int play(short* data, int dataSize);
     void pause(bool paused);
 
+
 private:
     SLObjectItf engineObject;
     SLEngineItf engineEngine;

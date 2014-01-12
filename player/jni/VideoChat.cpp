@@ -76,10 +76,6 @@ int VideoChat::Play(const char* url)
     if (m_playing) return -1;
     m_playing = true;
 
-    pSpeexCodec = new SpeexCodec();
-    pAudioOutput = new AudioOutput();
-    pH264Decodec = new H264Decodec();
-
     memset(szUrl, 0, MAX_RTMPURL_SIZE);
     strcpy(szUrl, url);
     
@@ -109,10 +105,7 @@ int VideoChat::StopPlay()
     wait_mutex.Unlock();
 
     pthread_join(thread_play, NULL);
-    
-    SAFE_DELETE(pSpeexCodec);  LOGI("release SpeexCodec");
-    SAFE_DELETE(pAudioOutput); LOGI("release AudioOutput");
-    SAFE_DELETE(pH264Decodec); LOGI("release H264Decodec");
+
 
     return 0;
 }
@@ -158,7 +151,7 @@ size_t VideoChat::convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nm
 
 bool VideoChat::get_rtmp_url(VideoChat* pThis)
 {
-    int test = 7;
+    /*int test = 7;
     if (pThis->szUrl[test++] != '1' ||
         pThis->szUrl[test++] != '2' ||
         pThis->szUrl[test++] != '2' ||
@@ -173,7 +166,7 @@ bool VideoChat::get_rtmp_url(VideoChat* pThis)
         pThis->szUrl[test++] != '0') { // http://122.0.67.180
         LOGI("Media Platform Address Invalid!");
         return false;
-    }
+    }*/
     
     HTTP_ctx http_c = {0};
     http_c.date = (char*)"\0";
@@ -226,19 +219,6 @@ void* VideoChat::_play(void* pVideoChat)
     LOGI("env->GetMethodID = 0x%08X", (int)jEventMethodId);
     LOGI("Play thread begin...");
 
-    //
-    // alloc audio&video buffer
-    //
-    AVFrame *picture = avcodec_alloc_frame();
-    const int max_audio_buffer_size = 100;
-
-    int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
-    short *audio_buffer[max_audio_buffer_size] = {0};
-    audio_buffer[0] = new short[audio_frame_size*max_audio_buffer_size];
-    for(int i=1; i<max_audio_buffer_size; i++)
-        audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
-
-
 	pthread_cond_t cond;
 	//Mutex wait_mutex;
 	pthread_cond_init(&cond, NULL);
@@ -282,8 +262,26 @@ void* VideoChat::_play(void* pVideoChat)
     		continue; // connect faild!
         }
 
-        uint32_t timestamp = 0;
-        uint32_t process_ts = 0;
+
+		//
+        // init modules
+        //
+        pThis->pSpeexCodec = new SpeexCodec();
+        pThis->pAudioOutput = new AudioOutput();
+        pThis->pH264Decodec = new H264Decodec();
+
+        //
+        // alloc audio&video buffer
+        //
+        AVFrame *picture = avcodec_alloc_frame();
+        const int max_audio_buffer_size = 100;
+
+        int audio_frame_size = pThis->pSpeexCodec->audio_frame_size();
+        short *audio_buffer[max_audio_buffer_size] = {0};
+        audio_buffer[0] = new short[audio_frame_size*max_audio_buffer_size];
+        for(int i=1; i<max_audio_buffer_size; i++)
+            audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
+
 
         RTMPPacket rtmp_pakt;
         bool bFirstPacket = true;
@@ -305,45 +303,16 @@ void* VideoChat::_play(void* pVideoChat)
                 break; // recv error
             }
 
-            // slow
-            //env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 0);
-            
-            if (rtmp_pakt.m_body == NULL) {
-            	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -3);
-                break; // reconnect
-            }
-
-            if (timestamp == 0) {
-            	// reset timestamp
-            	timestamp = rtmp_pakt.m_nTimeStamp;
-            	process_ts = time(0);
-            }
-
             if (bFirstPacket){
             	bFirstPacket = false;
             	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 3);
             }
-/*
-            if (rtmp_pakt.m_nTimeStamp - timestamp > 30000){ // drop packet for pass 3 seconds
-            	RTMPPacket_Free(&rtmp_pakt);
-            	LOGE("Drop packet...(TS:%d)",rtmp_pakt.m_nTimeStamp);
-            	if (time(0) - process_ts > 60000){
-            		// reset packet timestamp
-            		timestamp = rtmp_pakt.m_nTimeStamp;
-            		LOGE("reset packet timestamp...(TS:%d)",rtmp_pakt.m_nTimeStamp);
-            	}
-            	continue;
-            }
-*/
-            timestamp = rtmp_pakt.m_nTimeStamp;
-            process_ts = time(0);
 
             if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_AUDIO && 0xB2 == rtmp_pakt.m_body[0])
             {
                 // Speex Voice Data
                 int dec_audio_count = pThis->pSpeexCodec->decode(rtmp_pakt.m_body + 1, rtmp_pakt.m_nBodySize - 1, audio_buffer);
                 pThis->pAudioOutput->play(audio_buffer[0], audio_frame_size*dec_audio_count);
-
             }
             else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_VIDEO && 7 == (rtmp_pakt.m_body[0] & 0x0f))
             {
@@ -354,25 +323,11 @@ void* VideoChat::_play(void* pVideoChat)
                 AutoLock lock(pThis->renderLock);
                 if (got_picture && pThis->pVideoRender) {
                     // draw buffer
-                    pThis->pVideoRender->setFrame( picture,
+                    pThis->pVideoRender->setFrame(picture,
                         pThis->pH264Decodec->getWidth(),
                         pThis->pH264Decodec->getHeight());
                 }
 
-            }
-            else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_INFO)
-            {
-                // data
-            	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -4);
-            }
-            else if (rtmp_pakt.m_packetType == RTMP_PACKET_TYPE_FLASH_VIDEO)
-            {
-                // Flash data
-            	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -4);
-            }
-            else
-            {
-            	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -4);
             }
 
             RTMPPacket_Free(&rtmp_pakt);
@@ -388,25 +343,33 @@ void* VideoChat::_play(void* pVideoChat)
         RTMP_Free(pThis->pRtmp);
         pThis->pRtmp = NULL;
 
-    }
+        {
+        	AutoLock lock(pThis->renderLock);
+        	if (pThis->pVideoRender)
+        		pThis->pVideoRender->clearFrame();
+        }
 
-    {
-    	AutoLock lock(pThis->renderLock);
-    	if (pThis->pVideoRender)
-    		pThis->pVideoRender->clearFrame();
-    }
+        //
+        // free audio&video buffer
+        //
+        if (audio_buffer[0]) delete[] audio_buffer[0];
+#if USEFFMPEG
+        if (picture) avcodec_free_frame(&picture);
+#else
+        if (picture) av_free(picture);
+#endif
+
+        //
+        // free modules
+        //
+        SAFE_DELETE(pThis->pSpeexCodec);  LOGI("release SpeexCodec");
+        SAFE_DELETE(pThis->pAudioOutput); LOGI("release AudioOutput");
+        SAFE_DELETE(pThis->pH264Decodec); LOGI("release H264Decodec");
+	}
 
     pthread_cond_destroy(&cond);
     
-    //
-    // free audio&video buffer
-    //
-    if (audio_buffer[0]) delete[] audio_buffer[0];
-#if USEFFMPEG
-    if (picture) avcodec_free_frame(&picture);
-#else
-    if (picture) av_free(picture);
-#endif
+
     env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 4);
     //env->DeleteGlobalRef( pThis->m_jObject );
     ((JavaVM*)pThis->m_jVM)->DetachCurrentThread();

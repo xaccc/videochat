@@ -9,28 +9,40 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-SpeexCodec::SpeexCodec()
+SpeexCodec::SpeexCodec() : dec_state (NULL)
 {
-    speex_bits_init(&dbits);
-    dec_state = speex_decoder_init(&speex_wb_mode);
-    speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
-
-    // disable perceptual enhancer
-    // int enh=0;
-    // speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
+    reset();
 }
 
 SpeexCodec::~SpeexCodec()
 {
-    speex_bits_destroy(&dbits);
-    speex_decoder_destroy(dec_state);
+	if (dec_state)
+		speex_decoder_destroy(dec_state);
+	dec_state = NULL;
+}
+
+void SpeexCodec::reset(void) {
+	if (dec_state != NULL)
+		speex_decoder_destroy(dec_state);
+
+	decode_frames = 0;
+    dec_state = speex_decoder_init(&speex_wb_mode);
+    speex_decoder_ctl(dec_state, SPEEX_GET_FRAME_SIZE, &dec_frame_size);
+
+    // disable perceptual enhancer
+    int enh=1;
+    speex_decoder_ctl(dec_state, SPEEX_SET_ENH, &enh);
 }
 
 int SpeexCodec::decode(char* data, int data_size, short** output_buffer)
 {
-    if (output_buffer == NULL || output_buffer[0] == NULL)
-        return -1;
+    //if (output_buffer == NULL || output_buffer[0] == NULL)
+    //    return -1;
+	if (decode_frames > 100)
+		reset();
 
+    SpeexBits dbits;
+    speex_bits_init(&dbits);
     speex_bits_set_bit_buffer(&dbits, data, data_size);
     
     int frames_count = 0;
@@ -41,6 +53,10 @@ int SpeexCodec::decode(char* data, int data_size, short** output_buffer)
         frames_count++;
     }
     
+    speex_bits_destroy(&dbits);
+
+    decode_frames += frames_count;
+
     return frames_count;
 }
 
