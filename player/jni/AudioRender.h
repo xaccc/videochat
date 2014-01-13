@@ -10,7 +10,7 @@
 
 
 // 1秒钟buffer，16kHz，单声道，16-bit signed little endian，帧大小
-#define AUDIO_FRAMES_SIZE 16000
+#define AUDIO_FRAMES_SIZE 8000
 
 
 //
@@ -36,11 +36,17 @@ private:
     SLPlayItf bqPlayerPlay;
     SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
 
-    // audio buffer
-    short* playerBuffer;
-    int playerBufferIndex;
+    static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
+    static void* _player(void *context);
+
+    pthread_t thread_play;
+
+    Mutex m_lock;
     
+    RingBuffer<char> ringbuffer;
+
     bool m_paused;
+    bool m_running;
 };
 
 

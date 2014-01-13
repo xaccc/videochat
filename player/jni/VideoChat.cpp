@@ -16,27 +16,10 @@ extern "C"{
 
 
 
-static void DumpBuffer(uint8_t* buffer, uint size)
-{
-    int offset = 0;
-    int index = 0;
-    while(offset < size && offset < 128) {
-        LOGI("[DumpBuffer](%d - %02d): %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", size, index++,
-            buffer[offset + 0], buffer[offset + 1], buffer[offset + 2], buffer[offset + 3],
-            buffer[offset + 4], buffer[offset + 5], buffer[offset + 6], buffer[offset + 7],
-            buffer[offset + 8], buffer[offset + 9], buffer[offset + 10], buffer[offset + 11],
-            buffer[offset + 12], buffer[offset + 13], buffer[offset + 14], buffer[offset + 15]);
-
-        offset += 16;
-    }
-}
-
-
-
 VideoChat::VideoChat()
     : m_playing(false)
     , m_paused(false)
-    , pRtmp(NULL)
+    //, pRtmp(NULL)
     , szUrl(NULL)
     , szRTMPUrl(NULL)
     , pSpeexCodec(NULL)
@@ -83,6 +66,8 @@ int VideoChat::Play(const char* url)
 //    pthread_attr_init(&attr);
 //    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&thread_play, NULL, &_play, (void*)this);
+
+    return 0;
 }
 
 void VideoChat::PausePlayer(bool paused)
@@ -110,7 +95,6 @@ int VideoChat::StopPlay()
     return 0;
 }
 
-//
 // {
 //     "Method":"liveUrl",
 //     "UID":"user1",
@@ -134,11 +118,11 @@ size_t VideoChat::convert_UID_to_RTMP_callback(void *ptr, size_t size, size_t nm
 
         const char* host = (const char*)data["Host"];
         if (host && strlen(host) > 0) {
-        	snprintf(pThis->szRTMPUrl, MAX_RTMPURL_SIZE, "rtmp://%s:%d/%s/%s live=1",
-        		host,
-                (int)(json_int_t)data["Port"],
-                (const char*)data["Application"],
-                (const char*)data["Session"]);
+        	snprintf(pThis->szRTMPUrl, MAX_RTMPURL_SIZE,
+        			"rtmp://%s:%d/%s/%s live=1 buffer=3000 timeout=5", host,
+        			(int)(json_int_t)data["Port"],
+        			(const char*)data["Application"],
+        			(const char*)data["Session"]);
         }
         LOGI("[HTTP_get] json_parse: %s", pThis->szRTMPUrl);
         // relase
@@ -174,7 +158,6 @@ bool VideoChat::get_rtmp_url(VideoChat* pThis)
     if (HTTPRES_OK == HTTP_get(&http_c, pThis->szUrl, convert_UID_to_RTMP_callback)) {
         return true;
     } else {
-        // TODO: retry ???
         LOGI("[HTTP_get] failed!");
     }
 
@@ -252,8 +235,8 @@ void* VideoChat::_play(void* pVideoChat)
             continue; // connect faild!
         }
 
-        pThis->pRtmp = my_rtmp_connect(pThis->szRTMPUrl);
-        if (pThis->pRtmp == NULL) {
+        RTMP* pRtmp = my_rtmp_connect(pThis->szRTMPUrl);
+        if (pRtmp == NULL) {
         	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -2);
 
         	clock_gettime(CLOCK_REALTIME, &timeout);
@@ -282,8 +265,6 @@ void* VideoChat::_play(void* pVideoChat)
         for(int i=1; i<max_audio_buffer_size; i++)
             audio_buffer[i] = audio_buffer[i-1] + audio_frame_size;
 
-
-        RTMPPacket rtmp_pakt;
         bool bFirstPacket = true;
         while(pThis->m_playing)
         {
@@ -295,12 +276,11 @@ void* VideoChat::_play(void* pVideoChat)
         		break; // paused to reconnect
         	}
 
+        	RTMPPacket rtmp_pakt = { 0 };
             RTMPPacket_Reset(&rtmp_pakt);
             
-            //
-            if(!RTMP_GetNextMediaPacket(pThis->pRtmp, &rtmp_pakt)) {
-            	env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, -3);
-                break; // recv error
+            if (!RTMP_GetNextMediaPacket(pRtmp, &rtmp_pakt)) {
+            	break; // reconnect
             }
 
             if (bFirstPacket){
@@ -336,12 +316,12 @@ void* VideoChat::_play(void* pVideoChat)
         //
         // free rtmp
         //
-        if (RTMP_IsConnected(pThis->pRtmp)) {
-            RTMP_Close(pThis->pRtmp);
+        if (RTMP_IsConnected(pRtmp)) {
+            RTMP_Close(pRtmp);
         }
 
-        RTMP_Free(pThis->pRtmp);
-        pThis->pRtmp = NULL;
+        RTMP_Free(pRtmp);
+        pRtmp = NULL;
 
         {
         	AutoLock lock(pThis->renderLock);
@@ -371,7 +351,6 @@ void* VideoChat::_play(void* pVideoChat)
     
 
     env->CallVoidMethod((jobject)pThis->m_jObject, jEventMethodId, 4);
-    //env->DeleteGlobalRef( pThis->m_jObject );
     ((JavaVM*)pThis->m_jVM)->DetachCurrentThread();
     LOGI("Play thread exit...");
     return 0;

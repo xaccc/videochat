@@ -30,16 +30,32 @@ JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_Init(JNIEnv *env, jclass job
     return (jlong)pVideoChat;
 }
 
+static void* shutdownObject(void* fuck){
+
+	JNIEnv *env;
+	JavaVM *jVM;
+	VideoChat* pVideoChat = (VideoChat*)fuck;
+
+	jVM = (JavaVM*)pVideoChat->m_jVM;
+
+	jVM->AttachCurrentThread(&env, NULL);
+
+    pVideoChat->Release();
+    env->DeleteGlobalRef(pVideoChat->m_jObject);
+    //((JavaVM*)pVideoChat->m_jVM)->DestroyJavaVM();
+    delete pVideoChat;
+
+    jVM->DetachCurrentThread();
+	return 0;
+}
+
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jclass jobj, jlong handler)
 {
     VideoChat* pVideoChat = (VideoChat*)handler;
     
     if (pVideoChat) {
-        pVideoChat->Release();
-        env->DeleteGlobalRef(pVideoChat->m_jObject);
-        //((JavaVM*)pVideoChat->m_jVM)->DestroyJavaVM();
-        delete pVideoChat;
-        pVideoChat = NULL;
+    	pthread_t thread_shutdown;
+    	pthread_create(&thread_shutdown, NULL, &shutdownObject, (void*)pVideoChat);
     }
 }
 
@@ -112,6 +128,8 @@ JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_SetRenderViewPort(JNIEnv *en
     if (pVideoRender) {
         pVideoRender->setViewport(jWidth,jHeight);
     }
+
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *env, jclass jobj, jlong handler)

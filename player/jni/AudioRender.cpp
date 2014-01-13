@@ -1,5 +1,5 @@
 #include "AudioRender.h"
-
+#include <errno.h>
 
 #undef LOGI
 #define LOGI(...)
@@ -12,11 +12,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 AudioOutput::AudioOutput()
-    : playerBufferIndex(0), m_paused(false)
+    : m_paused(false), m_running(true), ringbuffer(1024*1024)
 {
-    SLresult result; // SL_RESULT_SUCCESS
+	SLresult result; // SL_RESULT_SUCCESS
 
-    playerBuffer = new short[AUDIO_FRAMES_SIZE];
 
     // create engine
     result = slCreateEngine(&engineObject, 0, NULL, 0, NULL, NULL);
@@ -53,19 +52,24 @@ AudioOutput::AudioOutput()
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_PLAY, &bqPlayerPlay);
     // get the buffer queue interface
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_BUFFERQUEUE, &bqPlayerBufferQueue);
+    // register callback on the buffer queue
+    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, this);
     // set the player's state to playing
     result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
+
+    //pthread_create(&thread_play, NULL, &_player, (void*)this);
 }
 
 AudioOutput::~AudioOutput()
 {
     pause(true);
     
+    m_running = false;
+    //pthread_join(thread_play, NULL);
+
     (*bqPlayerObject)->Destroy(bqPlayerObject);
     (*outputMixObject)->Destroy(outputMixObject);
     (*engineObject)->Destroy(engineObject);
-    
-    delete[] playerBuffer;
 }
 
 void AudioOutput::pause(bool paused)
@@ -79,32 +83,60 @@ void AudioOutput::pause(bool paused)
     }
 }
 
+// this callback handler is called every time a buffer finishes playing
+void AudioOutput::bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
+{
+	AudioOutput* pThis = (AudioOutput*)context;
+	pThis->m_lock.Unlock();
+}
+
+void* AudioOutput::_player(void *context)
+{
+	AudioOutput* pThis = (AudioOutput*)context;
+
+	short audioBuffer[AUDIO_FRAMES_SIZE];
+	struct timespec timeout;
+
+	pthread_cond_t cond;
+	pthread_cond_init(&cond, NULL);
+
+
+	bool bFirst = true;
+	while(pThis->m_running) {
+    	clock_gettime(CLOCK_REALTIME, &timeout);
+    	timeout.tv_nsec += 1000;
+		pthread_cond_timedwait(&cond, pThis->m_lock.mutex(), &timeout);
+
+		if (!bFirst)
+			pThis->m_lock.Lock();
+
+		if (pThis->ringbuffer.pop((char*)audioBuffer, AUDIO_FRAMES_SIZE*sizeof(short))) {
+			(*pThis->bqPlayerBufferQueue)->Enqueue(pThis->bqPlayerBufferQueue,
+					audioBuffer, AUDIO_FRAMES_SIZE * sizeof(short));
+		} else {
+			pThis->m_lock.Unlock();
+		}
+	}
+
+	pthread_cond_destroy(&cond);
+
+	return 0;
+}
+
 int AudioOutput::play(short* data, int dataSize)
 {
     if (m_paused) return -1;
     
-    if (dataSize > (AUDIO_FRAMES_SIZE >> 1))
-    {
-        // 立即render , 测试过，立即播放抖动很厉害，没法听，也是由于dataSize过小导致的
-        (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, data, dataSize * sizeof(short));
-        LOGI("[AudioOutput::play] just Enqueue.");
-    } else {
-        // 缓存buffer 1s
-        int last = 0;
-        
-        while (dataSize > 0) {
-            last = min(AUDIO_FRAMES_SIZE - playerBufferIndex, dataSize);
-
-            memcpy(playerBuffer + playerBufferIndex, data, last * sizeof(short));
-            playerBufferIndex += last;
-            dataSize -= last;
-
-            if(playerBufferIndex == AUDIO_FRAMES_SIZE) {
-                (*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, playerBuffer, playerBufferIndex * sizeof(short));
-                playerBufferIndex = 0;
-                LOGI("[AudioOutput::play] PlayerBufferQueue Enqueue.");
-            }
-        }
+#if USE_RINGBUFFER
+    if (!ringbuffer.push((char*)data, dataSize*sizeof(short))) {
+    	LOGE("Audio Buffer is Full!!!");
     }
+#else
+	(*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, data, dataSize * sizeof(short));
+	m_lock.Lock();
+#endif
+
+
+    return 0;
 }
 

@@ -59,7 +59,7 @@ private:
     H264Decodec* pH264Decodec;
     VideoRender* pVideoRender;
 
-    RTMP* pRtmp;
+    //RTMP* pRtmp;
 
     char* szUrl;
     char* szRTMPUrl;

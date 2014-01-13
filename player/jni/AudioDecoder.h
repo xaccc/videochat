@@ -9,8 +9,6 @@ extern "C" {
 #include "utils.h"
 
 
-
-
 //
 // audio codec
 //
@@ -19,8 +17,6 @@ class SpeexCodec
 public:
     SpeexCodec();
     ~SpeexCodec();
-
-    void reset(void);
 
     int decode(char* data, int data_size, short** output_buffer);
 
