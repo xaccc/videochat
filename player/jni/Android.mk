@@ -23,7 +23,6 @@ LOCAL_ARM_MODE  := arm
 #LOCAL_CFLAGS    := -DHAVE_NEON=1
 
 #LOCAL_CFLAGS    := -DUSEPOSTPROC
-#LOCAL_LDFLAGS    +=  -lpostproc
 
 LOCAL_MODULE    :=  vc
 LOCAL_SRC_FILES :=  VideoChat.cpp \
@@ -37,7 +36,6 @@ LOCAL_SRC_FILES :=  VideoChat.cpp \
 
 LOCAL_LDFLAGS	:= $(LOCAL_LDFLAGS) -L$(LOCAL_PATH)/$(TARGET_ARCH_ABI)/lib 
 LOCAL_C_INCLUDES +=  $(LOCAL_PATH)/$(TARGET_ARCH_ABI)/include
-#LOCAL_C_INCLUDES +=  ${ANDROID_NDK}/sources/cxx-stl/stlport/stlport
 
 APP_CPPFLAGS := -S -frtti -fexceptions
 
@@ -58,7 +56,7 @@ LOCAL_LDFLAGS    += -lrtmp
 
 # for ffmpeg
 LOCAL_CFLAGS     += -DUSEFFMPEG
-LOCAL_LDFLAGS    += -lavcodec -lavutil
+LOCAL_LDFLAGS    += -lavcodec -lavutil -lpostproc
 #LOCAL_SRC_FILES :=  h264dec/cabac.cpp \
 #                    h264dec/common.cpp \
 #                    h264dec/dsputil.cpp \

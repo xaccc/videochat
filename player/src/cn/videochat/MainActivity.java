@@ -53,11 +53,13 @@ public class MainActivity extends Activity implements OnClickListener, ErrorList
 
 		// test fuck
 		txtLog.post(new Runnable(){
-		public void run() {
-			startPlay(txtUserId.getText().toString());
-		}});
+			public void run() {
+				startPlay(txtUserId.getText().toString());
+			}});
+		
 	}
 
+	
 	private void startPlay(String room_id) {
 		stopPlay();
 		

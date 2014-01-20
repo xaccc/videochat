@@ -8,13 +8,9 @@
 
 #include "utils.h"
 
-extern "C" {
-#include <unistd.h>
-#include <speex/speex_jitter.h>
-}
 
 // 1秒钟buffer，16kHz，单声道，16-bit signed little endian，帧大小
-#define AUDIO_FRAMES_SIZE 16000
+#define AUDIO_FRAMES_SIZE 8000
 
 
 //
@@ -26,11 +22,9 @@ public:
     AudioOutput();
     ~AudioOutput();
 
-    int play(uint32_t ts, short* data, int dataSize);
+    int play(short* data, int dataSize);
     void pause(bool paused);
 
-private:
-    static void* _play(void* pAudioOutput);
 
 private:
     SLObjectItf engineObject;
@@ -42,19 +36,17 @@ private:
     SLPlayItf bqPlayerPlay;
     SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
 
-    // audio buffer
-    short* playerBuffer;
-    int playerBufferIndex;
-    
+    static void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
+    static void* _player(void *context);
 
     pthread_t thread_play;
-    Mutex handleLock;
-    Mutex waitShutdown;
 
-    JitterBuffer *jitterBuffer;
+    Mutex m_lock;
+    
+    RingBuffer<char> ringbuffer;
 
     bool m_paused;
-    bool m_shutdown;
+    bool m_running;
 };
 
 

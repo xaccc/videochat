@@ -49,7 +49,6 @@ static void* shutdownObject(void* fuck){
 	return 0;
 }
 
-
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_Release(JNIEnv *env, jclass jobj, jlong handler)
 {
     VideoChat* pVideoChat = (VideoChat*)handler;
@@ -129,6 +128,8 @@ JNIEXPORT jlong JNICALL Java_cn_videochat_VideoChat_SetRenderViewPort(JNIEnv *en
     if (pVideoRender) {
         pVideoRender->setViewport(jWidth,jHeight);
     }
+
+    return 0;
 }
 
 JNIEXPORT void JNICALL Java_cn_videochat_VideoChat_RenderFrame(JNIEnv *env, jclass jobj, jlong handler)

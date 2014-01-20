@@ -1,15 +1,9 @@
 #include "AudioRender.h"
-
+#include <errno.h>
 
 #undef LOGI
 #define LOGI(...)
 
-#define USE_JITTER 0
-#define USE_THREAD 0
-
-#if USE_JITTER
-#define USE_THREAD 1
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -18,11 +12,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 AudioOutput::AudioOutput()
-    : playerBufferIndex(0), m_paused(false), m_shutdown(false)
+    : m_paused(false), m_running(true), ringbuffer(1024*1024)
 {
-    SLresult result; // SL_RESULT_SUCCESS
+	SLresult result; // SL_RESULT_SUCCESS
 
-    playerBuffer = new short[AUDIO_FRAMES_SIZE*2];
 
     // create engine
     result = slCreateEngine(&engineObject, 0, NULL, 0, NULL, NULL);
@@ -59,38 +52,24 @@ AudioOutput::AudioOutput()
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_PLAY, &bqPlayerPlay);
     // get the buffer queue interface
     result = (*bqPlayerObject)->GetInterface(bqPlayerObject, SL_IID_BUFFERQUEUE, &bqPlayerBufferQueue);
+    // register callback on the buffer queue
+    result = (*bqPlayerBufferQueue)->RegisterCallback(bqPlayerBufferQueue, bqPlayerCallback, this);
     // set the player's state to playing
     result = (*bqPlayerPlay)->SetPlayState(bqPlayerPlay, SL_PLAYSTATE_PLAYING);
 
-#if USE_JITTER
-    jitterBuffer = jitter_buffer_init(AUDIO_FRAMES_SIZE);
-#endif //USE_JITTER
-
-#if USE_THREAD
-    waitShutdown.Lock();
-    pthread_create(&thread_play, NULL, &_play, (void*)this);
-#endif //USE_THREAD
+    //pthread_create(&thread_play, NULL, &_player, (void*)this);
 }
 
 AudioOutput::~AudioOutput()
 {
     pause(true);
-
-#if USE_THREAD
-    m_shutdown = true;
-    waitShutdown.Unlock();
-    pthread_join(thread_play, NULL);
-#endif //USE_THREAD
     
-#if USE_JITTER
-    jitter_buffer_destroy(jitterBuffer);
-#endif //USE_JITTER
+    m_running = false;
+    //pthread_join(thread_play, NULL);
 
     (*bqPlayerObject)->Destroy(bqPlayerObject);
     (*outputMixObject)->Destroy(outputMixObject);
     (*engineObject)->Destroy(engineObject);
-    
-    delete[] playerBuffer;
 }
 
 void AudioOutput::pause(bool paused)
@@ -104,93 +83,60 @@ void AudioOutput::pause(bool paused)
     }
 }
 
-int AudioOutput::play(uint32_t ts, short* data, int dataSize)
+// this callback handler is called every time a buffer finishes playing
+void AudioOutput::bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 {
-	AutoLock autoLock(handleLock);
-
-#if USE_JITTER
-	JitterBufferPacket packet;
-	packet.data = (char*)data;
-	packet.len = dataSize*sizeof(short);
-	packet.timestamp = ts;
-	packet.span = dataSize*1000/AUDIO_FRAMES_SIZE; //???
-	packet.sequence = 0;
-	packet.user_data = 0;
-	jitter_buffer_put(jitterBuffer, &packet);
-#else // USE_JITTER
-#if USE_THREAD
-	int size = min(AUDIO_FRAMES_SIZE*2-playerBufferIndex, dataSize);
-	memcpy(playerBuffer + playerBufferIndex, data, size*sizeof(short));
-	playerBufferIndex += size;
-#else //USE_THREAD
-   int last = 0;
-
-	while (dataSize > 0) {
-		last = min(AUDIO_FRAMES_SIZE - playerBufferIndex, dataSize);
-
-		memcpy(playerBuffer + playerBufferIndex, data, last * sizeof(short));
-		playerBufferIndex += last;
-		dataSize -= last;
-
-		if(playerBufferIndex == AUDIO_FRAMES_SIZE) {
-			(*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, playerBuffer, playerBufferIndex * sizeof(short));
-			playerBufferIndex = 0;
-		}
-	}
-#endif //USE_THREAD
-#endif // USE_JITTER
-
-	return 0;
+	AudioOutput* pThis = (AudioOutput*)context;
+	pThis->m_lock.Unlock();
 }
 
-void* AudioOutput::_play(void* pAudioOutput)
+void* AudioOutput::_player(void *context)
 {
-#if USE_THREAD
-	AudioOutput* pThis = (AudioOutput*)pAudioOutput;
+	AudioOutput* pThis = (AudioOutput*)context;
+
+	short audioBuffer[AUDIO_FRAMES_SIZE];
+	struct timespec timeout;
 
 	pthread_cond_t cond;
 	pthread_cond_init(&cond, NULL);
 
-	struct timespec justNow;
-    int start_offset = 2000;
-    int timestamp = 0;
 
-    JitterBufferPacket outpacket;
-    char* buffer = (char*)malloc(AUDIO_FRAMES_SIZE*sizeof(short));
-    int prev_ts = 0;
+	bool bFirst = true;
+	while(pThis->m_running) {
+    	clock_gettime(CLOCK_REALTIME, &timeout);
+    	timeout.tv_nsec += 1000;
+		pthread_cond_timedwait(&cond, pThis->m_lock.mutex(), &timeout);
 
-	while(!pThis->m_shutdown)
-	{
-    	if (!pThis->m_paused) {
-			AutoLock autoLock(pThis->handleLock);
-#if USE_JITTER
-			outpacket.data = buffer;
-		    outpacket.len = AUDIO_FRAMES_SIZE*sizeof(short);
+		if (!bFirst)
+			pThis->m_lock.Lock();
 
-		    int ts = jitter_buffer_get_pointer_timestamp(pThis->jitterBuffer);
-		    if(JITTER_BUFFER_OK == jitter_buffer_get(pThis->jitterBuffer, &outpacket, AUDIO_FRAMES_SIZE, &start_offset)) {
-				(*pThis->bqPlayerBufferQueue)->Enqueue(pThis->bqPlayerBufferQueue, outpacket.data, outpacket.len);
-				jitter_buffer_tick(pThis->jitterBuffer);
-				LOGE("[buffer] pts:%7d, ts:%7d, dlt:%7d, size:%d", prev_ts, ts, ts - prev_ts,outpacket.len);
-				prev_ts = ts;
-			}
-#else // USE_JITTER
-		    if (AUDIO_FRAMES_SIZE == pThis->playerBufferIndex) {
-		    	(*pThis->bqPlayerBufferQueue)->Enqueue(pThis->bqPlayerBufferQueue, pThis->playerBuffer, pThis->playerBufferIndex*sizeof(short));
-		    	pThis->playerBufferIndex = 0;
-		    }
-#endif // USE_JITTER
+		if (pThis->ringbuffer.pop((char*)audioBuffer, AUDIO_FRAMES_SIZE*sizeof(short))) {
+			(*pThis->bqPlayerBufferQueue)->Enqueue(pThis->bqPlayerBufferQueue,
+					audioBuffer, AUDIO_FRAMES_SIZE * sizeof(short));
+		} else {
+			pThis->m_lock.Unlock();
 		}
-
-    	clock_gettime(CLOCK_REALTIME, &justNow);
-    	//justNow.tv_sec += 1;
-    	justNow.tv_nsec += 100000; // sleep
-    	pthread_cond_timedwait(&cond, pThis->waitShutdown.mutex(), &justNow);
 	}
 
-	free(buffer);
 	pthread_cond_destroy(&cond);
-#endif //USE_THREAD
 
 	return 0;
 }
+
+int AudioOutput::play(short* data, int dataSize)
+{
+    if (m_paused) return -1;
+    
+#if USE_RINGBUFFER
+    if (!ringbuffer.push((char*)data, dataSize*sizeof(short))) {
+    	LOGE("Audio Buffer is Full!!!");
+    }
+#else
+	(*bqPlayerBufferQueue)->Enqueue(bqPlayerBufferQueue, data, dataSize * sizeof(short));
+	m_lock.Lock();
+#endif
+
+
+    return 0;
+}
+
