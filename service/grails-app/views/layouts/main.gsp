@@ -25,7 +25,7 @@
             <li><g:link class="list" action="list" controller="mediaService"><g:message code="default.list.label" args="[message(code: 'mediaService.label', default: 'Services')]" /></g:link></li>
             <li><g:link class="list" action="list" controller="online"><g:message code="default.list.label" args="[message(code: 'online.label', default: 'Onlines')]" /></g:link></li>
             <li><g:link class="list" action="list" controller="mediaEvent"><g:message code="default.list.label" args="[message(code: 'mediaEvent.label', default: 'Media Event')]" /></g:link></li>
-            <li><g:link class="create" action="create"><g:message code="default.new.label" args="[message(code: 'mediaService.label', default: 'Media Service')]" /></g:link></li>
+            <li><g:link class="create" action="create" controller="mediaService"><g:message code="default.new.label" args="[message(code: 'mediaService.label', default: 'Media Service')]" /></g:link></li>
         </ul>
     </div>
     <div class="body">

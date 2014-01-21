@@ -203,7 +203,7 @@ class ApiController {
         
         if(tp == 'stream') {
             switch(ev) {
-            case 'broadcastStart':
+            case 'broadcastStart': // 申请直播
                 def online = Online.findBySessionId(sn?:'')
                 if (!online) {
                     render(status: 404,contentType: "application/json") {
@@ -212,8 +212,6 @@ class ApiController {
                     return false;
                 }
 
-                _postLog(new StringBuffer('op=hostLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
-                
                 def me = MediaEvent.findByUidAndSessionId(online.uid, online.sessionId)
                 if(!me) {
                     new MediaEvent(uid: online.uid, 
@@ -223,7 +221,7 @@ class ApiController {
                 }
                 break;
 
-            case 'broadcastClose':
+            case 'broadcastClose': // 结束直播
                 def online = Online.findBySessionId(sn?:'')
                 if (!online) {
                     render(status: 404,contentType: "application/json") {
@@ -242,18 +240,50 @@ class ApiController {
                     me.save(flush:true)
                 }
                 break;
-                
-            case 'backup':
-                def flvid = params['flvid']; // 文件ID
-                def first = params['first']; // 是否上麦第一次备份
+
+            case 'subscriberStart': // 观看开始
                 def online = Online.findBySessionId(sn?:'')
-                
                 if (!online) {
                     render(status: 404,contentType: "application/json") {
                         result = 'Session Don\'t Exists!'
                     }
                     return false;
                 }
+                online.subscriber = online.subscriber ? online.subscriber + 1 : 1;
+                online.save(flush:true);
+                break;
+
+            case 'subscriberClose': // 观看结束
+                def online = Online.findBySessionId(sn?:'')
+                if (!online) {
+                    render(status: 404,contentType: "application/json") {
+                        result = 'Session Don\'t Exists!'
+                    }
+                    return false;
+                }
+                online.subscriber = online.subscriber ? online.subscriber - 1 : 0;
+                online.save(flush:true);
+                break;
+                
+            case 'backup': // 数据备份记录
+                def flvid = params['flvid']; // 文件ID
+                def first = params['first']; // 是否上麦第一次备份
+                def online = Online.findBySessionId(sn?:'')
+
+                if (!online) {
+                    render(status: 404,contentType: "application/json") {
+                        result = 'Session Don\'t Exists!'
+                    }
+                    return false;
+                }
+
+                if (first) {
+                    _postLog(new StringBuffer('op=hostLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
+                }
+
+                online.lastPing = new Date();
+                online.save(flush:true);
+                
                 def mediaService = MediaService.get(online?online.mediaServiceId:'')
                 new MediaBackup(
                     uid: online.uid,
@@ -272,7 +302,7 @@ class ApiController {
         }
     }
 
-    private static ExecutorService threadpool = Executors.newFixedThreadPool(5);
+    private static ExecutorService threadpool = Executors.newFixedThreadPool(1);
     private static Async async = Async.newInstance().use(threadpool);
     
     private void _postLog(StringBuffer query) {

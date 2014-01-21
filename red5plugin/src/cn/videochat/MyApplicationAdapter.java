@@ -15,6 +15,7 @@ import org.red5.server.api.stream.IStreamListener;
 import org.red5.server.api.stream.ISubscriberStream;
 import org.red5.server.api.stream.IBroadcastStream;
 import org.red5.server.api.stream.IPlayItem;
+import org.red5.server.api.stream.IPlaylistSubscriberStream;
 import org.red5.server.stream.ClientBroadcastStream;
 import org.red5.server.stream.PlaylistSubscriberStream;
 import org.red5.server.stream.AbstractClientStream;
@@ -43,8 +44,9 @@ class MyApplicationAdapter extends ApplicationAdapter {
     private Logger log = Logger.getLogger(MyApplicationAdapter.class);
     
     ConcurrentHashMap<ClientBroadcastStream, AutoRecorder> recorderTaskList = new ConcurrentHashMap<ClientBroadcastStream, AutoRecorder>();
+    ConcurrentHashMap<String, String> clientId2StreamName = new ConcurrentHashMap<String, String>();
     
-    ExecutorService httpLogThreadpool = Executors.newFixedThreadPool(2);
+    ExecutorService httpLogThreadpool = Executors.newFixedThreadPool(1);
     Async httpLogAsync = Async.newInstance().use(httpLogThreadpool);
 
     public MyApplicationAdapter() {
@@ -164,17 +166,6 @@ class MyApplicationAdapter extends ApplicationAdapter {
 
     public void streamPublishStart(IBroadcastStream stream) {
         super.streamPublishStart(stream);
-        
-        StringBuffer query = new StringBuffer("type=stream&event=publishStart");
-
-        if (stream instanceof ClientBroadcastStream) {
-            ClientBroadcastStream broadcastStream = (ClientBroadcastStream)stream;
-
-            query.append("&name=");
-            query.append(broadcastStream.getPublishedName());
-        }
-        
-        PostLog(query);
     }
 
     public void streamBroadcastStart(IBroadcastStream stream) {
@@ -185,8 +176,16 @@ class MyApplicationAdapter extends ApplicationAdapter {
         if (stream instanceof ClientBroadcastStream) {
             ClientBroadcastStream broadcastStream = (ClientBroadcastStream)stream;
 
+            String clientId = broadcastStream.getConnection().getClient().getId();
+
             query.append("&name=");
             query.append(broadcastStream.getPublishedName());
+            query.append("&clientId=");
+            query.append(clientId);
+            query.append("&ip=");
+            query.append(broadcastStream.getConnection().getRemoteAddress());
+            query.append("&port=");
+            query.append(broadcastStream.getConnection().getRemotePort());
 
             if (isRecord) {
                 AutoRecorder task = new AutoRecorder(this, broadcastStream, properties);
@@ -206,8 +205,16 @@ class MyApplicationAdapter extends ApplicationAdapter {
         if (stream instanceof ClientBroadcastStream) {
             ClientBroadcastStream broadcastStream = (ClientBroadcastStream)stream;
             
+            String clientId = broadcastStream.getConnection().getClient().getId();
+
             query.append("&name=");
             query.append(broadcastStream.getPublishedName());
+            query.append("&clientId=");
+            query.append(clientId);
+            query.append("&ip=");
+            query.append(broadcastStream.getConnection().getRemoteAddress());
+            query.append("&port=");
+            query.append(broadcastStream.getConnection().getRemotePort());
             
             AutoRecorder task = recorderTaskList.remove(broadcastStream);
             if (task != null) {
@@ -227,8 +234,19 @@ class MyApplicationAdapter extends ApplicationAdapter {
         if (stream instanceof PlaylistSubscriberStream) {
             PlaylistSubscriberStream subscriberStream = (PlaylistSubscriberStream)stream;
 
+            String clientId = subscriberStream.getConnection().getClient().getId();
+            String streamName = subscriberStream.getCurrentItem().getName();
+
             query.append("&name=");
-            query.append(subscriberStream.getCurrentItem().getName());
+            query.append(streamName);
+            query.append("&clientId=");
+            query.append(clientId);
+            query.append("&ip=");
+            query.append(subscriberStream.getConnection().getRemoteAddress());
+            query.append("&port=");
+            query.append(subscriberStream.getConnection().getRemotePort());
+
+            clientId2StreamName.put(clientId, streamName);
         }
 
         PostLog(query);
@@ -242,8 +260,17 @@ class MyApplicationAdapter extends ApplicationAdapter {
         if (stream instanceof PlaylistSubscriberStream) {
             PlaylistSubscriberStream subscriberStream = (PlaylistSubscriberStream)stream;
 
-            // query.append("&name=");
-            // query.append(subscriberStream.getItem(0).getName());
+            String clientId = subscriberStream.getConnection().getClient().getId();
+            String streamName = clientId2StreamName.remove(clientId);
+
+            query.append("&name=");
+            query.append(streamName);
+            query.append("&clientId=");
+            query.append(clientId);
+            query.append("&ip=");
+            query.append(subscriberStream.getConnection().getRemoteAddress());
+            query.append("&port=");
+            query.append(subscriberStream.getConnection().getRemotePort());
         }
         
         PostLog(query);

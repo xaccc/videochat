@@ -7,7 +7,10 @@ class Online {
     
     String mediaServiceId
     String sessionId
-    
+
+    Long subscriber = 0;
+
+    Date lastPing
     Date dateCreated
     Date lastUpdated
     
@@ -16,6 +19,9 @@ class Online {
         
         mediaServiceId(maxSize:200,blank:false,nullable:false)
         sessionId(maxSize:200,blank:false,nullable:false)
+
+        subscriber(nullable:true)
+        lastPing(nullable:true)
     }
 
 	static mapping = {

@@ -16,7 +16,8 @@ package {
     import flash.text.TextFormat;
     import flash.filters.DropShadowFilter;
     import flash.utils.*;
-    
+    import flash.events.*;
+
     import flash.system.Security;
     import flash.system.SecurityPanel;
     
@@ -33,16 +34,12 @@ package {
         private var vidLocal:Video;
         private var cameraSettings:H264VideoStreamSettings;
         private var established:Boolean = false;
-        
-        private var remote_host:String = "localhost";
-        private var remote_port:int = 80;
-        private var remote_app:String = "/videochat"
-        
-        private var uid:String;
-        private var myuid:String;
-        
-        private var api:ServiceAPI;
+        private var minuteTimer:Timer = new Timer(1000, 0);
+        private var fieldSpeed:TextField = new TextField();
 
+        private var uid:String = "uid";
+        private var myuid:String = "myuid";
+        
         public function ProducerLocal() {
 
 
@@ -59,6 +56,7 @@ package {
             }
             
             nc.connect(rtmpURL, myuid);
+            minuteTimer.addEventListener(TimerEvent.TIMER, onTick);
         }
         
         private function init():void {
@@ -84,6 +82,35 @@ package {
             fieldSpeed.filters = [new DropShadowFilter()];
             fieldSpeed.filters[0].color = 0xFFFFFF
             addChild(fieldSpeed);
+        }
+
+        public function onTick(event:TimerEvent):void {
+            if(nc != null && nc.connected) {
+                if(nsOut.info.currentBytesPerSecond > int(150*1024/8)) {
+                    fieldSpeed.textColor = 0x00FF00;
+                } else if(nsOut.info.currentBytesPerSecond > int(120*1024/8)) {
+                    fieldSpeed.textColor = 0xFF8800;
+                } else {
+                    fieldSpeed.textColor = 0xFF0000;
+                }
+
+                fieldSpeed.text = int(nsOut.info.currentBytesPerSecond*8/1024) + "kbps";
+            } else if (established){
+                established = false;
+                fieldSpeed.textColor = 0xFF0000;
+                fieldSpeed.text = "重新连接网络...";
+                nc.connect(rtmpURL, myuid);
+            }
+
+            /*
+            Log.trace("==============================================");
+            Log.trace("currentBytesPerSecond = ", int(nsOut.info.currentBytesPerSecond*8/1024));
+            Log.trace('connected = ', nc.connected);
+            Log.trace('established = ', established);
+            Log.trace('dataBytesPerSecond = ', nsOut.info.dataBytesPerSecond);
+            Log.trace('videoLossRate = ', nsOut.info.videoLossRate);
+            Log.trace('audioLossRate = ', nsOut.info.audioLossRate);           
+            */ 
         }
         
         // bandwidth detection on the server
@@ -126,10 +153,11 @@ package {
         
         private function setCam():void {
             cam = Camera.getCamera();
-            Security.showSettings(SecurityPanel.CAMERA);
+            // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
-            cam.setMode(320,240,25);
-            cam.setQuality(0,90);
+            cam.setMode(320,240,10);
+            //cam.setMode(320,240,15);
+            cam.setQuality(22000,0); // Bytes per second
         }
         
         private function setMic():void {
