@@ -34,7 +34,9 @@
 					
 						<g:sortableColumn property="dateCreated" title="${message(code: 'online.dateCreated.label', default: 'Date Created')}" />
 					
-						<g:sortableColumn property="lastUpdated" title="${message(code: 'online.lastUpdated.label', default: 'Last Updated')}" />
+						<g:sortableColumn property="subscriber" title="${message(code: 'online.subscriber.label', default: 'Subscriber')}" />
+					
+						<g:sortableColumn property="lastPing" title="${message(code: 'online.lastPing.label', default: 'Last Ping')}" />
                         
                         <th>&nbsp;</th>
 					
@@ -58,7 +60,9 @@
 					
 						<td><g:formatDate date="${onlineInstance.dateCreated}" /></td>
 					
-						<td><g:formatDate date="${onlineInstance.lastUpdated}" /></td>
+						<td>${fieldValue(bean: onlineInstance, field: "subscriber")}</td>
+					
+						<td><g:formatDate date="${onlineInstance.lastPing}" /></td>
                         
                         <td><g:remoteLink before="if(!confirm('Are you sure?')) return false" onSuccess="location.reload()" onFailure="alert('删除失败！')"
                                 controller="api" action="removeSession" id="${onlineInstance.sessionId}">下线</g:remoteLink></td>

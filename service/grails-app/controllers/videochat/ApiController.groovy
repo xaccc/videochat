@@ -277,7 +277,7 @@ class ApiController {
                     return false;
                 }
 
-                if (first) {
+                if (first.toBoolean()) {
                     _postLog(new StringBuffer('op=hostLive&room_id=').append(online.uid).append('&timestamp=').append(ts).append('&Version=video'));
                 }
 
