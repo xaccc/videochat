@@ -11,7 +11,7 @@ package
 		
 		static public function trace(...args):void {
 			try {
-				var msg:String = "";
+				var msg:String = "[VIDEOCHAT] ";
 				for (var i:int = 0; i < args.length; i++) {
 					msg += args[i];
 				}

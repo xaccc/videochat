@@ -49,8 +49,11 @@ package {
 
             if (root.loaderInfo.parameters["uid"])
                 uid = stage.loaderInfo.parameters["uid"];
+
+            Log.trace("UID = ", uid);
             
             init();
+            Log.trace("init done!");
             
             if (api == null)
                 api = new ServiceAPI(apiCallback, remote_host, remote_port, remote_app);
@@ -58,6 +61,7 @@ package {
             Log.trace("Host = ", remote_host, ", Port = ", remote_port, ", App = ", remote_app);
             
             if (remote_host == "rm.boboxiu.tv") {
+                Log.trace("call api publishURL...");
                 api.publishUrl(uid);
             }
 
@@ -124,7 +128,7 @@ package {
                     nc.client = this;
                 }
                 
-                myuid = "UID="+HTTPCookie.getUID();
+                //myuid = "UID="+HTTPCookie.getUID();
                 nc.connect(rtmpURL, myuid);
                 
             }
@@ -196,9 +200,14 @@ package {
         }
         
         private function setCam():void {
-            cam = Camera.getCamera(String(Camera.names.length-1));
+            var i:int;
+            for (i = 0; i < Camera.names.length; i++) {
+                Log.trace('Camera: ',Camera.names[i]);
+            }
+            cam = Camera.getCamera();
+
             // Security.showSettings(SecurityPanel.CAMERA);
-            cam.setKeyFrameInterval(5);
+            cam.setKeyFrameInterval(20);
             cam.setMode(320,240,10);
             //cam.setMode(320,240,15);
             cam.setQuality(int(bitrate*1024/8),0); // Bytes per second

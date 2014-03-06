@@ -25,8 +25,6 @@ package
             response_callback = cb;
         }
         
-        
-        
         public function publishUrl(uid:String):void {
             httpRequest("publishUrl", "/api/publishUrl", {"uid":uid});
         }
@@ -39,19 +37,19 @@ package
             httpRequest("liveStatus", "/api/liveStatus", {"uid":uid});
         }
         
-        
-        
         private function httpRequest(functionName:String, path:String, params:Object):void {
             // smp
-            if (request_busy) throw new Error("ServiceAPI is busy!");
+            if (request_busy) {
+                Log.trace("http request busy!");
+                return;
+            }
             request_function = functionName;
             request_busy = true;
             response_succeeded = false;
             
-            var url:String = remote_scheme + "://" + remote_host + ":" + remote_port + remote_app + path;
+            var url:String = remote_scheme + "://" + remote_host + ":" + remote_port + remote_app + path + '?' + Math.random();
             var request:URLRequest = new URLRequest(url);
             
-
             var variables:URLVariables = new URLVariables();
             for(var prop:String in params)
                 variables[prop] = params[prop];
@@ -73,8 +71,6 @@ package
                 request_busy = false;
                 
                 Log.trace("URL Load Error: ", error.message, "(", error.errorID, ")");
-                
-                throw error;
             }
         }
         

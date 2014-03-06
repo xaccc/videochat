@@ -130,7 +130,7 @@ package
                 
                 if (response.Session) {
                     //Log.trace('URL: ',rtmpURL,'/',rtmpInstance);
-                    myuid = "UID="+HTTPCookie.getUID();
+                    //myuid = "UID="+HTTPCookie.getUID();
                     nc.connect(rtmpURL, myuid);
                 } else {
                     fieldSpeed.text = "主播不在线";
