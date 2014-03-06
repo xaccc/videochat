@@ -43,17 +43,12 @@ package {
         private var myuid:String;
         
         private var api:ServiceAPI;
+        private var bitrate:int = 175; // kB
 
         public function Producer() {
 
-            //if (root.loaderInfo.parameters["host"])
-            //    remote_host = stage.loaderInfo.parameters["host"];
-            //if (root.loaderInfo.parameters["port"])
-            //    remote_port = parseInt(stage.loaderInfo.parameters["port"]);
             if (root.loaderInfo.parameters["uid"])
                 uid = stage.loaderInfo.parameters["uid"];
-            //if (root.loaderInfo.parameters["app"])
-            //    remote_app = stage.loaderInfo.parameters["app"];
             
             init();
             
@@ -71,9 +66,9 @@ package {
 
         public function onTick(event:TimerEvent):void {
             if(nc != null && nc.connected) {
-                if(nsOut.info.currentBytesPerSecond > int(150*1024/8)) {
+                if(nsOut.info.currentBytesPerSecond > int(bitrate*4/5*1024/8)) {
                     fieldSpeed.textColor = 0x00FF00;
-                } else if(nsOut.info.currentBytesPerSecond > int(120*1024/8)) {
+                } else if(nsOut.info.currentBytesPerSecond > int(bitrate*2/5*1024/8)) {
                     fieldSpeed.textColor = 0xFF8800;
                 } else {
                     fieldSpeed.textColor = 0xFF0000;
@@ -85,6 +80,9 @@ package {
                 fieldSpeed.textColor = 0xFF0000;
                 fieldSpeed.text = "重新连接网络...";
                 nc.connect(rtmpURL, myuid);
+            } else {
+                fieldSpeed.textColor = 0xFF0000;
+                fieldSpeed.text = "连接中...";
             }
 
             /*
@@ -198,12 +196,12 @@ package {
         }
         
         private function setCam():void {
-            cam = Camera.getCamera();
+            cam = Camera.getCamera(String(Camera.names.length-1));
             // Security.showSettings(SecurityPanel.CAMERA);
             cam.setKeyFrameInterval(5);
             cam.setMode(320,240,10);
             //cam.setMode(320,240,15);
-            cam.setQuality(22000,0); // Bytes per second
+            cam.setQuality(int(bitrate*1024/8),0); // Bytes per second
         }
         
         private function setMic():void {
